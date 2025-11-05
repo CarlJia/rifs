@@ -1,4 +1,4 @@
-use axum::{http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse, response::Html};
 
 /// 内嵌的HTML文档内容
 pub const INDEX_HTML: &str = r#"<!DOCTYPE html>
@@ -438,6 +438,9 @@ pub const INDEX_HTML: &str = r#"<!DOCTYPE html>
                     <p>Rust 图床服务 - 高性能、安全、易用</p>
                 </div>
                 <div style="flex: 1; text-align: right;">
+                    <a href="/gallery" class="nav-btn" title="图片瀑布流" style="margin-right: 10px;">
+                        🖼️ 图片预览
+                    </a>
                     <a href="/cache/management" class="nav-btn" title="缓存管理面板">
                         🗄️ 缓存管理
                     </a>
@@ -485,12 +488,19 @@ pub const INDEX_HTML: &str = r#"<!DOCTYPE html>
                          </div>
                      </div>
                      <div class="feature">
-                         <div class="feature-icon">🧹</div>
-                         <div>
-                             <strong style="color: #f1f5f9; font-size: 1.1rem;">自动清理</strong><br>
-                             <small style="color: #94a3b8;">基于年龄、大小、访问频率的智能清理</small>
-                         </div>
-                     </div>
+                                               <div class="feature-icon">🧹</div>
+                                               <div>
+                                                   <strong style="color: #f1f5f9; font-size: 1.1rem;">自动清理</strong><br>
+                                                   <small style="color: #94a3b8;">基于年龄、大小、访问频率的智能清理</small>
+                                               </div>
+                                           </div>
+                                           <div class="feature">
+                                               <div class="feature-icon">🌊</div>
+                                               <div>
+                                                   <strong style="color: #f1f5f9; font-size: 1.1rem;">瀑布流预览</strong><br>
+                                                   <small style="color: #94a3b8;">Pinterest风格的图片浏览体验</small>
+                                               </div>
+                                           </div>
                 </div>
                 
                 <div class="storage-info">
@@ -533,6 +543,20 @@ pub const INDEX_HTML: &str = r#"<!DOCTYPE html>
                         </div>
                         <div class="endpoint-content">
                             <div class="description">上传图片文件 (multipart/form-data, field: file)</div>
+                        </div>
+                    </div>
+
+                    <div class="endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <span class="path">/gallery</span>
+                        </div>
+                        <div class="endpoint-content">
+                            <div class="description">图片瀑布流预览页面 (Pinterest风格浏览)</div>
+                            <div style="margin-top: 12px;">
+                                <strong style="color: #06b6d4;">🌊 瀑布流特性</strong><br>
+                                <small style="color: #94a3b8;">响应式布局、搜索筛选、懒加载、模态预览</small>
+                            </div>
                         </div>
                     </div>
 
@@ -1600,6 +1624,749 @@ pub const CACHE_MANAGEMENT_HTML: &str = r#"<!DOCTYPE html>
 </body>
 </html>"#;
 
+/// 图片瀑布流页面HTML
+pub const GALLERY_HTML: &str = r#"<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片瀑布流 - RIFS 图床服务</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #e2e8f0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            font-weight: 300;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(135deg, #5a67d8, #6b46c1);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+        
+        .filters {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 150px;
+        }
+        
+        .filter-group label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 15px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+        
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+            background: linear-gradient(135deg, #0891b2, #2563eb);
+        }
+        
+        .stats-bar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #06b6d4;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        
+        .masonry {
+            column-count: 5;
+            column-gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        @media (max-width: 1200px) {
+            .masonry {
+                column-count: 4;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .masonry {
+                column-count: 3;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .masonry {
+                column-count: 2;
+            }
+        }
+        
+        @media (max-width: 400px) {
+            .masonry {
+                column-count: 1;
+            }
+        }
+        
+        .image-item {
+            break-inside: avoid;
+            margin-bottom: 20px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .image-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border-color: rgba(6, 182, 212, 0.5);
+        }
+        
+        .image-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .image-wrapper img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        
+        .image-item:hover .image-wrapper img {
+            transform: scale(1.05);
+        }
+        
+        .image-info {
+            padding: 15px;
+        }
+        
+        .image-hash {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #06b6d4;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        
+        .image-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .image-size {
+            font-weight: 500;
+        }
+        
+        .image-date {
+            font-size: 0.75rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+        
+        .load-more {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .no-images {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+        
+        .no-images h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #64748b;
+        }
+        
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+        }
+        
+        .modal-content img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: #f1f5f9;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .modal-close:hover {
+            color: #ef4444;
+        }
+        
+        .modal-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            text-align: center;
+            max-width: 80%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ 图片瀑布流</h1>
+            <p>浏览所有上传的图片，支持搜索、筛选和预览</p>
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn">🏠 返回首页</a>
+                <a href="/cache/management" class="nav-btn">🗄️ 缓存管理</a>
+                <a href="/upload" class="nav-btn">📤 上传图片</a>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group search-input">
+                    <label for="search">搜索图片</label>
+                    <input type="text" id="search" placeholder="输入关键词搜索...">
+                </div>
+                <div class="filter-group">
+                    <label for="mime-type">文件类型</label>
+                    <select id="mime-type">
+                        <option value="">全部类型</option>
+                        <option value="image/jpeg">JPEG</option>
+                        <option value="image/png">PNG</option>
+                        <option value="image/gif">GIF</option>
+                        <option value="image/webp">WebP</option>
+                        <option value="image/avif">AVIF</option>
+                        <option value="image/x-icon">ICO</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sort-by">排序方式</label>
+                    <select id="sort-by">
+                        <option value="created_at">创建时间</option>
+                        <option value="size">文件大小</option>
+                        <option value="access_count">访问次数</option>
+                        <option value="last_accessed">最后访问</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sort-dir">排序方向</label>
+                    <select id="sort-dir">
+                        <option value="desc">降序</option>
+                        <option value="asc">升序</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <label>&nbsp;</label>
+                    <button class="btn" onclick="applyFilters()">应用筛选</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="total-count">-</div>
+                <div class="stat-label">总图片数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="total-size">-</div>
+                <div class="stat-label">总大小</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="current-count">-</div>
+                <div class="stat-label">当前显示</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="avg-size">-</div>
+                <div class="stat-label">平均大小</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            正在加载图片...
+        </div>
+
+        <div id="masonry" class="masonry" style="display: none;">
+            <!-- 图片将动态加载到这里 -->
+        </div>
+
+        <div id="no-images" class="no-images" style="display: none;">
+            <h3>📷 暂无图片</h3>
+            <p>还没有上传任何图片，<a href="/" style="color: #06b6d4;">点击这里上传第一张图片</a></p>
+        </div>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <div id="load-more" class="load-more" style="display: none;">
+            <button class="btn" onclick="loadMoreImages()">加载更多</button>
+        </div>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div id="image-modal" class="image-modal">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <div class="modal-content">
+            <img id="modal-image" src="" alt="">
+        </div>
+        <div class="modal-info" id="modal-info">
+            <!-- 图片信息将动态显示 -->
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 0;
+        const pageSize = 20;
+        let hasMore = true;
+        let loading = false;
+        let currentFilters = {};
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadImages(true);
+            loadStats();
+            
+            // 搜索框回车事件
+            document.getElementById('search').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+
+            // 模态框点击外部关闭
+            document.getElementById('image-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+        });
+
+        // 应用筛选条件
+        function applyFilters() {
+            currentPage = 0;
+            hasMore = true;
+            
+            currentFilters = {
+                search: document.getElementById('search').value.trim(),
+                mime_type: document.getElementById('mime-type').value,
+                order_by: document.getElementById('sort-by').value,
+                order_dir: document.getElementById('sort-dir').value
+            };
+            
+            // 清空当前显示
+            document.getElementById('masonry').innerHTML = '';
+            document.getElementById('masonry').style.display = 'none';
+            document.getElementById('no-images').style.display = 'none';
+            document.getElementById('load-more').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            
+            loadImages(true);
+        }
+
+        // 加载图片
+        async function loadImages(isFirstLoad = false) {
+            if (loading || !hasMore) return;
+            
+            loading = true;
+            
+            try {
+                const params = new URLSearchParams({
+                    limit: pageSize,
+                    offset: currentPage * pageSize,
+                    ...currentFilters
+                });
+                
+                const response = await fetch('/api/images/query?' + params.toString());
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const images = result.data.items || [];
+                    const total = result.data.total || 0;
+                    
+                    if (images.length === 0 && isFirstLoad) {
+                        showNoImages();
+                    } else if (images.length > 0) {
+                        displayImages(images, isFirstLoad);
+                        updateStats(images, total);
+                        
+                        // 检查是否还有更多数据
+                        hasMore = (currentPage + 1) * pageSize < total;
+                        
+                        if (hasMore) {
+                            document.getElementById('load-more').style.display = 'block';
+                        } else {
+                            document.getElementById('load-more').style.display = 'none';
+                        }
+                    }
+                } else {
+                    showError('加载图片失败: ' + (result.message || '未知错误'));
+                }
+            } catch (error) {
+                showError('网络错误: ' + error.message);
+            } finally {
+                loading = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 显示图片
+        function displayImages(images, isFirstLoad) {
+            const masonry = document.getElementById('masonry');
+            
+            if (isFirstLoad) {
+                masonry.innerHTML = '';
+            }
+            
+            images.forEach(image => {
+                const imageItem = createImageItem(image);
+                masonry.appendChild(imageItem);
+            });
+            
+            masonry.style.display = 'block';
+            document.getElementById('no-images').style.display = 'none';
+        }
+
+        // 创建图片元素
+        function createImageItem(image) {
+            const div = document.createElement('div');
+            div.className = 'image-item';
+            div.onclick = () => openModal(image);
+            
+            const imageUrl = `/images/${image.hash}`;
+            const formattedSize = formatSize(image.size);
+            const formattedDate = new Date(image.created_at).toLocaleDateString('zh-CN');
+            
+            div.innerHTML = `
+                <div class="image-wrapper">
+                    <img src="${imageUrl}" alt="${image.hash}" loading="lazy" 
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzM0MTU1Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk0YTNiOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4='">
+                </div>
+                <div class="image-info">
+                    <div class="image-hash">${image.hash.substring(0, 12)}...</div>
+                    <div class="image-meta">
+                        <span class="image-size">${formattedSize}</span>
+                        <span class="image-date">${formattedDate}</span>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // 打开模态框
+        function openModal(image) {
+            const modal = document.getElementById('image-modal');
+            const modalImage = document.getElementById('modal-image');
+            const modalInfo = document.getElementById('modal-info');
+            
+            modalImage.src = `/images/${image.hash}`;
+            modalImage.alt = image.hash;
+            
+            const formattedSize = formatSize(image.size);
+            const createdDate = new Date(image.created_at).toLocaleString('zh-CN');
+            const lastAccessed = image.last_accessed ? 
+                new Date(image.last_accessed).toLocaleString('zh-CN') : '从未访问';
+            
+            modalInfo.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align: left;">
+                    <div>
+                        <strong>哈希值:</strong><br>
+                        <span style="font-family: monospace; font-size: 0.9rem;">${image.hash}</span>
+                    </div>
+                    <div>
+                        <strong>大小:</strong><br>
+                        ${formattedSize}
+                    </div>
+                    <div>
+                        <strong>类型:</strong><br>
+                        ${image.mime_type}
+                    </div>
+                    <div>
+                        <strong>访问次数:</strong><br>
+                        ${image.access_count}
+                    </div>
+                    <div>
+                        <strong>创建时间:</strong><br>
+                        ${createdDate}
+                    </div>
+                    <div>
+                        <strong>最后访问:</strong><br>
+                        ${lastAccessed}
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <a href="/images/${image.hash}" target="_blank" class="btn" style="padding: 8px 16px; font-size: 0.9rem;">在新窗口打开</a>
+                    <a href="/images/${image.hash}/info" target="_blank" class="btn" style="padding: 8px 16px; font-size: 0.9rem; margin-left: 10px;">查看详细信息</a>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // 加载更多图片
+        function loadMoreImages() {
+            currentPage++;
+            loadImages();
+        }
+
+        // 显示无图片
+        function showNoImages() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('masonry').style.display = 'none';
+            document.getElementById('no-images').style.display = 'block';
+            document.getElementById('load-more').style.display = 'none';
+        }
+
+        // 显示错误
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // 格式化文件大小
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 更新统计信息
+        function updateStats(images, total) {
+            const currentCount = document.getElementById('masonry').children.length;
+            const totalSize = images.reduce((sum, img) => sum + img.size, 0);
+            const avgSize = images.length > 0 ? totalSize / images.length : 0;
+            
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('current-count').textContent = currentCount;
+            document.getElementById('avg-size').textContent = formatSize(avgSize);
+        }
+
+        // 加载总体统计信息
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    document.getElementById('total-size').textContent = formatSize(result.data.total_size || 0);
+                }
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>"#;
+
 /// API文档根路径
 pub async fn api_docs() -> impl IntoResponse {
     (
@@ -1607,4 +2374,9 @@ pub async fn api_docs() -> impl IntoResponse {
         [("content-type", "text/html; charset=utf-8")],
         INDEX_HTML,
     )
+}
+
+/// 图片瀑布流页面
+pub async fn gallery_page() -> impl IntoResponse {
+    Html(GALLERY_HTML)
 }

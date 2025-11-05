@@ -12,7 +12,7 @@ use crate::config::AppConfig;
 use crate::handlers::{
     api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
     delete_image, get_cache_stats, get_image, get_image_info, get_stats, get_system_stats,
-    health_check_detailed, query_images_get, query_images_post, upload_image,
+    gallery_page, health_check_detailed, query_images_get, query_images_post, upload_image,
 };
 use crate::middleware::{log_requests, request_timeout};
 
@@ -21,6 +21,8 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
     let mut app = Router::new()
         // API文档根路径
         .route("/", get(api_docs))
+        // 图片瀑布流页面
+        .route("/gallery", get(gallery_page))
         // 健康检查
         .route("/health", get(health_check_detailed))
         .route("/health/detailed", get(health_check_detailed))
