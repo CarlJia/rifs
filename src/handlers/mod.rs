@@ -12,4 +12,4 @@ pub use image_handler::{
     delete_image, get_image, get_image_info, get_stats, query_images_get, query_images_post,
     upload_image,
 };
-pub use static_files::api_docs;
+pub use static_files::{api_docs, gallery_page};
