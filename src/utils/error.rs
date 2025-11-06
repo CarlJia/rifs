@@ -21,6 +21,9 @@ pub enum AppError {
     #[error("无效的文件")]
     InvalidFile,
 
+    #[error("未经授权: {0}")]
+    Unauthorized(String),
+
     #[error("服务器内部错误: {0}")]
     Internal(String),
 
@@ -69,6 +72,14 @@ impl IntoResponse for AppError {
                     success: false,
                     message: "无效的文件".to_string(),
                     code: Some(400),
+                },
+            ),
+            AppError::Unauthorized(msg) => (
+                StatusCode::UNAUTHORIZED,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(401),
                 },
             ),
             AppError::Internal(msg) => (

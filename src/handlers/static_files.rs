@@ -1,4 +1,4 @@
-use axum::{http::StatusCode, response::IntoResponse, response::Html};
+use axum::{http::StatusCode, response::Html, response::IntoResponse};
 
 /// 内嵌的HTML文档内容
 pub const INDEX_HTML: &str = r#"<!DOCTYPE html>
