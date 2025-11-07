@@ -15,6 +15,8 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
+    #[serde(default)]
+    pub auth: AuthConfig,
 }
 
 /// 服务器配置
@@ -96,6 +98,28 @@ pub struct CacheConfig {
     pub space_threshold_percent: f64,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthConfig {
+    pub enabled: bool,
+    pub token: Option<String>,
+    #[serde(default = "default_auth_header_name")]
+    pub header_name: String,
+}
+
+fn default_auth_header_name() -> String {
+    "Authorization".to_string()
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            token: None,
+            header_name: default_auth_header_name(),
+        }
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -136,6 +160,7 @@ impl Default for AppConfig {
                 min_heat_score: 0.1,
                 space_threshold_percent: 0.8, // 80%使用率时才触发热度清理
             },
+            auth: AuthConfig::default(),
         }
     }
 }
@@ -229,6 +254,18 @@ heat_decay_factor = 0.98
 min_heat_score = 0.1
 # 空间使用阈值百分比（0.0-1.0），超过此阈值才触发基于热度的清理
 space_threshold_percent = 0.8
+
+# ========================================
+# 认证配置
+# ========================================
+
+[auth]
+# 是否启用令牌认证
+enabled = false
+# 当启用认证时需要提供的令牌（建议设置为复杂随机字符串）
+token = ""
+# 可选：自定义认证头名称，默认使用 Authorization
+header_name = "Authorization"
 
 # ========================================
 # 数据库配置

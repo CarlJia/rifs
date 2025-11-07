@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::app_state::AppState;
 use crate::handlers::static_files::CACHE_MANAGEMENT_HTML;
+use crate::middleware::AuthGuard;
 use crate::models::CacheCleanupResult;
 use crate::services::CacheService;
 use crate::utils::AppError;
@@ -68,6 +69,7 @@ pub async fn auto_cleanup_cache(
 
 /// 清空所有缓存
 pub async fn clear_all_cache(
+    _: AuthGuard,
     State(app_state): State<AppState>,
 ) -> Result<Json<ApiResponse<CacheCleanupResult>>, AppError> {
     let connection = app_state.db_pool().get_connection();
