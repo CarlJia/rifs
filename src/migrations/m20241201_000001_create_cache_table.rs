@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
                     .table(Cache::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Cache::CacheKey)
+                        ColumnDef::new(Cache::Key)
                             .string()
                             .not_null()
                             .primary_key(),
@@ -120,7 +120,7 @@ impl MigrationTrait for Migration {
 #[derive(DeriveIden)]
 enum Cache {
     Table,
-    CacheKey,
+    Key,
     OriginalHash,
     TransformParams,
     FilePath,

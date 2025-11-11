@@ -18,11 +18,11 @@ where
 {
     type Rejection = AppError;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         _state: &S,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
+    ) -> Result<Self, Self::Rejection> {
+        {
             let config = AppConfig::get();
             let auth_config = &config.auth;
 

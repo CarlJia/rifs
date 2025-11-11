@@ -169,7 +169,7 @@ impl Write for HybridRotatingWriter {
             if let Some(ref mut file) = *file_guard {
                 file.write(buf)?
             } else {
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "文件未打开"));
+                return Err(std::io::Error::other("文件未打开"));
             }
         };
 

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存管理 - RIFS</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+        .stat-card{background:rgba(15,23,42,0.5);padding:16px;border-radius:8px;border-left:3px solid #06b6d4}
+        .stat-value{font-size:1.5rem;font-weight:600;color:#06b6d4;margin-bottom:4px}
+        .stat-label{color:#94a3b8;font-size:0.8rem}
+        .actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+        .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626)}
+        .btn-danger:hover{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+        .btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706)}
+        .btn-warning:hover{background:linear-gradient(135deg,#d97706,#b45309)}
+        .log-area{background:rgba(15,23,42,0.5);border-radius:8px;padding:16px;font-family:'Monaco','Courier New',monospace;font-size:0.8rem;color:#cbd5e1;max-height:300px;overflow-y:auto;white-space:pre-wrap}
+        .progress{width:100%;height:8px;background:rgba(15,23,42,0.5);border-radius:4px;overflow:hidden;margin:8px 0}
+        .progress-bar{height:100%;background:linear-gradient(90deg,#06b6d4,#3b82f6);transition:width 0.3s ease}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>缓存管理</h1>
+            <p>监控和管理图片缓存</p>
+        </header>
+
+        <section class="card">
+            <div class="card-header">缓存统计</div>
+            <div class="card-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="cache-count">-</div>
+                        <div class="stat-label">缓存文件数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="cache-size">-</div>
+                        <div class="stat-label">缓存总大小</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="hit-rate">-</div>
+                        <div class="stat-label">命中率</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="oldest-cache">-</div>
+                        <div class="stat-label">最旧缓存</div>
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" id="usage-bar" style="width: 0%"></div>
+                </div>
+                <small id="usage-text" style="color: #94a3b8;">使用率: 0%</small>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">缓存操作</div>
+            <div class="card-content">
+                <div class="actions">
+                    <button class="btn" onclick="refreshStats()">刷新统计</button>
+                    <button class="btn btn-warning" onclick="autoCleanup()">自动清理</button>
+                    <button class="btn btn-warning" onclick="decayHeatScores()">衰减热度</button>
+                    <button class="btn btn-danger" onclick="clearAllCache()">清空所有缓存</button>
+                </div>
+                <div id="operation-log" class="log-area" style="display: none;"></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">缓存策略</div>
+            <div class="card-content">
+                <div class="storage-info">
+                    <h4>当前策略</h4>
+                    <p>• <strong>LRU清理</strong>: 最近最少使用的文件优先清理</p>
+                    <p>• <strong>热度衰减</strong>: 定期降低文件热度分数</p>
+                    <p>• <strong>大小限制</strong>: 超过限制时自动清理</p>
+                    <p>• <strong>时间限制</strong>: 超过TTL的文件自动清理</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p><a href="/">返回首页</a> | <a href="/gallery">图片库</a> | <a href="/health">系统状态</a></p>
+        </footer>
+    </div>
+
+    <script src="/static/cache_management.js"></script>
+</body>
+</html>

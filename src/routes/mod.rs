@@ -12,13 +12,16 @@ use crate::config::AppConfig;
 use crate::handlers::{
     api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
     delete_image, gallery_page, get_cache_stats, get_image, get_image_info, get_stats,
-    get_system_stats, health_check_detailed, query_images_get, query_images_post, upload_image,
+    get_system_stats, health_check_detailed, query_images_get, query_images_post, serve_static,
+    upload_image,
 };
 use crate::middleware::{log_requests, request_timeout};
 
 /// 创建应用路由
 pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
     let mut app = Router::new()
+        // 静态文件服务
+        .route("/static/{*path}", get(serve_static))
         // API文档根路径
         .route("/", get(api_docs))
         // 图片瀑布流页面
