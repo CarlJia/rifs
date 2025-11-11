@@ -32,6 +32,9 @@ body{font-family:system-ui,-apple-system,sans-serif;line-height:1.5;color:#e2e8f
 .storage-info h4{color:#06b6d4;margin-bottom:8px}
 .storage-info p{color:#cbd5e1;margin-bottom:4px;font-size:0.85rem}
 .footer{text-align:center;padding:20px 0;color:#64748b;font-size:0.85rem}
+.auth-info{position:fixed;top:20px;right:20px;background:rgba(15,23,42,0.9);padding:8px 12px;border-radius:6px;color:#cbd5e1;font-size:0.8rem;z-index:1000}
+.logout-btn{background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;margin-left:8px}
+.logout-btn:hover{background:rgba(239,68,68,0.3)}
 .footer a{color:#06b6d4;text-decoration:none}
 .footer a:hover{text-decoration:underline}
 .success{padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:6px;color:#10b981;margin-bottom:8px}

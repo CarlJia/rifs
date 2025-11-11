@@ -3,7 +3,19 @@ const pageSize = 20;
 let hasMore = true;
 let loading = false;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 检查是否需要认证
+    const authRequired = await checkAuthRequired();
+    if (authRequired && !localStorage.getItem('auth_token')) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // 如果已登录，显示认证信息
+    if (localStorage.getItem('auth_token')) {
+        document.getElementById('auth-info').style.display = 'block';
+    }
+    
     loadImages();
     loadStats();
 });
@@ -15,7 +27,9 @@ async function loadImages() {
     document.getElementById('loading').style.display = 'block';
     
     try {
-        const response = await fetch(`/api/images/query?page=${currentPage}&size=${pageSize}`);
+        const response = await fetch(`/api/images/query?page=${currentPage}&size=${pageSize}`, {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (result.success && result.data.images.length > 0) {
@@ -121,7 +135,9 @@ function updateStats(images, total) {
 
 async function loadStats() {
     try {
-        const response = await fetch('/api/stats');
+        const response = await fetch('/api/stats', {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (result.success) {

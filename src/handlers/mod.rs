@@ -1,3 +1,4 @@
+pub mod auth_handler;
 pub mod cache_handler;
 pub mod health_handler;
 pub mod image_handler;
@@ -13,3 +14,4 @@ pub use image_handler::{
     upload_image,
 };
 pub use static_files::{api_docs, gallery_page, serve_static};
+pub use auth_handler::{verify_token, get_auth_config};

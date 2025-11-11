@@ -1,10 +1,24 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 检查是否需要认证
+    const authRequired = await checkAuthRequired();
+    if (authRequired && !localStorage.getItem('auth_token')) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // 如果已登录，显示认证信息
+    if (localStorage.getItem('auth_token')) {
+        document.getElementById('auth-info').style.display = 'block';
+    }
+    
     refreshStats();
 });
 
 async function refreshStats() {
     try {
-        const response = await fetch('/api/cache/stats');
+        const response = await fetch('/api/cache/stats', {
+            headers: getAuthHeaders()
+        });
         const result = await response.json();
         
         if (result.success && result.data) {
@@ -53,6 +67,7 @@ async function autoCleanup() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...getAuthHeaders()
             }
         });
         
@@ -86,6 +101,7 @@ async function decayHeatScores() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...getAuthHeaders()
             }
         });
         
@@ -123,6 +139,7 @@ async function clearAllCache() {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
+                ...getAuthHeaders()
             }
         });
         

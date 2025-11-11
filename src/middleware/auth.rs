@@ -2,7 +2,6 @@ use axum::{
     extract::FromRequestParts,
     http::{header, request::Parts, HeaderName},
 };
-use std::future::Future;
 use tracing::warn;
 
 use crate::{config::AppConfig, utils::AppError};
@@ -59,9 +58,12 @@ where
                     if value == expected_token {
                         return Ok(Self);
                     }
-                } else if value == expected_token {
-                    return Ok(Self);
-                }
+                } else {
+                                // 对于其他 header 名称，直接比较值
+                                if value.trim() == expected_token {
+                                    return Ok(Self);
+                                }
+                            }
             }
 
             warn!("认证失败: 缺少或提供了无效的凭证");

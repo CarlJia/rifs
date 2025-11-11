@@ -1,4 +1,16 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // 检查是否需要认证
+    const authRequired = await checkAuthRequired();
+    if (authRequired && !localStorage.getItem('auth_token')) {
+        // 如果需要认证但未登录，跳转到登录页面
+        window.location.href = '/login';
+        return;
+    }
+    
+    // 如果已登录，显示认证信息
+    if (localStorage.getItem('auth_token')) {
+        document.getElementById('auth-info').style.display = 'block';
+    }
     const uploadForm = document.getElementById('upload-form');
     const fileInput = document.getElementById('file-input');
     const fileLabel = document.querySelector('.file-label');
@@ -70,6 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const response = await fetch('/upload', {
                     method: 'POST',
+                    headers: getAuthHeaders(),
                     body: singleFormData
                 });
                 

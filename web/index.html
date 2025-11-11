@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <div id="auth-info" class="auth-info" style="display: none;">
+        <span>已登录</span>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
     <div class="container">
         <header class="header">
             <h1>RIFS</h1>
@@ -107,6 +111,7 @@
         </footer>
     </div>
 
+    <script src="/static/login.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

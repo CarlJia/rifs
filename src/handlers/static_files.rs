@@ -56,16 +56,34 @@ fn get_content_type(file_path: &str) -> &'static str {
     }
 }
 
-/// API文档根路径 - 重定向到主页
+/// API文档根路径 - 根据认证状态返回相应页面
 pub async fn api_docs() -> impl IntoResponse {
-    let html_content = include_str!("../../web/index.html");
-    Html(html_content)
+    let config = crate::config::AppConfig::get();
+    
+    if config.auth.enabled {
+        // 如果启用认证，返回登录页面
+        let html_content = include_str!("../../web/login.html");
+        Html(html_content)
+    } else {
+        // 如果未启用认证，返回主页
+        let html_content = include_str!("../../web/index.html");
+        Html(html_content)
+    }
 }
 
-/// 图片瀑布流页面
+/// 图片瀑布流页面 - 根据认证状态返回相应页面
 pub async fn gallery_page() -> impl IntoResponse {
-    let html_content = include_str!("../../web/gallery.html");
-    Html(html_content)
+    let config = crate::config::AppConfig::get();
+    
+    if config.auth.enabled {
+        // 如果启用认证，返回登录页面
+        let html_content = include_str!("../../web/login.html");
+        Html(html_content)
+    } else {
+        // 如果未启用认证，返回图库页面
+        let html_content = include_str!("../../web/gallery.html");
+        Html(html_content)
+    }
 }
 
 /// 缓存管理页面HTML

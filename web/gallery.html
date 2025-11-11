@@ -26,6 +26,10 @@
     </style>
 </head>
 <body>
+    <div id="auth-info" class="auth-info" style="display: none;">
+        <span>已登录</span>
+        <button class="logout-btn" onclick="logout()">退出</button>
+    </div>
     <div class="container">
         <header class="header">
             <h1>图片库</h1>
@@ -80,6 +84,7 @@
         <img id="modal-image" src="" alt="">
     </div>
 
+    <script src="/static/login.js"></script>
     <script src="/static/gallery.js"></script>
 </body>
 </html>
