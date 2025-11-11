@@ -12,7 +12,7 @@ use crate::config::AppConfig;
 use crate::handlers::{
     api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
     delete_image, gallery_page, get_cache_stats, get_image, get_image_info, get_stats,
-    get_system_stats, health_check_detailed, query_images_get, query_images_post, serve_static,
+    get_system_stats, health_check_detailed, login_page, query_images_get, query_images_post, serve_static,
     upload_image, verify_token, get_auth_config,
 };
 use crate::middleware::{log_requests, request_timeout};
@@ -24,6 +24,8 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         .route("/static/{*path}", get(serve_static))
         // API文档根路径
         .route("/", get(api_docs))
+        // 登录页面
+        .route("/login", get(login_page))
         // 图片瀑布流页面
         .route("/gallery", get(gallery_page))
         // 认证相关路由

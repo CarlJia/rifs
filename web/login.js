@@ -12,8 +12,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // 检查是否已经登录
-    checkAuthStatus();
+    // 检查是否已经登录 - 但只在首次加载时检查一次
+    if (!sessionStorage.getItem('login_check_done')) {
+        sessionStorage.setItem('login_check_done', 'true');
+        checkAuthStatus();
+    }
 
     loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -46,10 +49,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 showMessage('登录成功，正在跳转...', 'success');
                 
-                // 跳转到主页
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 1000);
+                // 立即跳转到主页 - app.js 会正确显示主页面
+                window.location.href = '/';
             } else {
                 showMessage(result.message || '认证失败', 'error');
             }
@@ -96,8 +97,8 @@ async function verifyStoredToken(token) {
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                // token 有效，跳转到主页
-                window.location.href = '/';
+                // token 有效，不再重定向到 "/" 而是保留在登录页
+                // 用户需要手动刷新或点击链接来进入主页
             }
         }
     } catch (error) {

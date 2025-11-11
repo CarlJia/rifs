@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // 清除登录检查标志，因为现在只在登录页面使用
+    sessionStorage.removeItem('login_check_done');
+    
     // 如果已登录，显示认证信息
     if (localStorage.getItem('auth_token')) {
         document.getElementById('auth-info').style.display = 'block';
@@ -153,3 +156,34 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 3000);
     }
 });
+
+// 退出登录
+function logout() {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_header_name');
+    window.location.href = '/login';
+}
+
+// 检查是否需要认证（从后端获取配置）
+async function checkAuthRequired() {
+    try {
+        const response = await fetch('/api/auth/config');
+        const result = await response.json();
+        return result.enabled;
+    } catch (error) {
+        return false;
+    }
+}
+
+// 获取认证头
+function getAuthHeaders() {
+    const token = localStorage.getItem('auth_token');
+    const headerName = localStorage.getItem('auth_header_name') || 'Authorization';
+    
+    if (token) {
+        return {
+            [headerName]: `Bearer ${token}`
+        };
+    }
+    return {};
+}
