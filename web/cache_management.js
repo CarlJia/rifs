@@ -202,3 +202,34 @@ function formatRelativeTime(date) {
 
 // 自动刷新统计信息
 setInterval(refreshStats, 30000); // 每30秒刷新一次
+
+// 退出登录
+function logout() {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_header_name');
+    window.location.href = '/login';
+}
+
+// 检查是否需要认证（从后端获取配置）
+async function checkAuthRequired() {
+    try {
+        const response = await fetch('/api/auth/config');
+        const result = await response.json();
+        return result.enabled;
+    } catch (error) {
+        return false;
+    }
+}
+
+// 获取认证头
+function getAuthHeaders() {
+    const token = localStorage.getItem('auth_token');
+    const headerName = localStorage.getItem('auth_header_name') || 'Authorization';
+    
+    if (token) {
+        return {
+            [headerName]: `Bearer ${token}`
+        };
+    }
+    return {};
+}

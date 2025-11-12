@@ -13,5 +13,5 @@ pub use image_handler::{
     delete_image, get_image, get_image_info, get_stats, query_images_get, query_images_post,
     upload_image,
 };
-pub use static_files::{api_docs, gallery_page, serve_static};
+pub use static_files::{api_docs, gallery_page, login_page, serve_static};
 pub use auth_handler::{verify_token, get_auth_config};

@@ -56,34 +56,26 @@ fn get_content_type(file_path: &str) -> &'static str {
     }
 }
 
-/// API文档根路径 - 根据认证状态返回相应页面
+/// API文档根路径 - 始终返回主页，让前端 JavaScript 处理认证检查和重定向
 pub async fn api_docs() -> impl IntoResponse {
-    let config = crate::config::AppConfig::get();
-    
-    if config.auth.enabled {
-        // 如果启用认证，返回登录页面
-        let html_content = include_str!("../../web/login.html");
-        Html(html_content)
-    } else {
-        // 如果未启用认证，返回主页
-        let html_content = include_str!("../../web/index.html");
-        Html(html_content)
-    }
+    // 无论认证是否启用，都返回 index.html
+    // 前端 app.js 会根据 localStorage 中的 auth_token 和认证配置来决定是否重定向到登录页面
+    let html_content = include_str!("../../web/index.html");
+    Html(html_content)
 }
 
-/// 图片瀑布流页面 - 根据认证状态返回相应页面
+/// 登录页面
+pub async fn login_page() -> impl IntoResponse {
+    let html_content = include_str!("../../web/login.html");
+    Html(html_content)
+}
+
+/// 图片瀑布流页面 - 始终返回图库页面，让前端 JavaScript 处理认证检查和重定向
 pub async fn gallery_page() -> impl IntoResponse {
-    let config = crate::config::AppConfig::get();
-    
-    if config.auth.enabled {
-        // 如果启用认证，返回登录页面
-        let html_content = include_str!("../../web/login.html");
-        Html(html_content)
-    } else {
-        // 如果未启用认证，返回图库页面
-        let html_content = include_str!("../../web/gallery.html");
-        Html(html_content)
-    }
+    // 无论认证是否启用，都返回 gallery.html
+    // 前端 gallery.js 会根据 localStorage 中的 auth_token 和认证配置来决定是否重定向到登录页面
+    let html_content = include_str!("../../web/gallery.html");
+    Html(html_content)
 }
 
 /// 缓存管理页面HTML
