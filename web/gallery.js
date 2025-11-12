@@ -90,7 +90,9 @@ async function loadImages() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
         
-        const response = await fetch(`/api/images/query?page=${currentPage}&size=${pageSize}`, {
+        // 计算 offset 基于当前页码
+        const offset = (currentPage - 1) * pageSize;
+        const response = await fetch(`/api/images/query?offset=${offset}&limit=${pageSize}`, {
             headers: getAuthHeaders(),
             signal: controller.signal
         });
@@ -101,13 +103,23 @@ async function loadImages() {
         
         console.log(`加载第${currentPage}页耗时: ${(endTime - startTime).toFixed(2)}ms`);
         
-        if (result.success && result.data.images.length > 0) {
-            displayImages(result.data.images, isFirstPage);
+        // API 返回的是 items 字段，需要转换为 images 格式
+        const images = result.data.items || result.data.images || [];
+        const imagesWithId = images.map(item => ({
+            id: item.hash,  // 使用 hash 作为 id
+            original_name: `${item.hash.substring(0, 8)}.${item.extension}`,
+            mime_type: item.mime_type,
+            size: item.size,
+            created_at: item.created_at
+        }));
+        
+        if (result.success && imagesWithId.length > 0) {
+            displayImages(imagesWithId, isFirstPage);
             totalImages = result.data.total;
-            displayedCount += result.data.images.length;
+            displayedCount += imagesWithId.length;
             
-            updateStats(result.data.images, result.data.total);
-            hasMore = result.data.images.length === pageSize;
+            updateStats(imagesWithId, result.data.total);
+            hasMore = imagesWithId.length === pageSize;
             
             // 更新分页信息
             updatePaginationInfo();
