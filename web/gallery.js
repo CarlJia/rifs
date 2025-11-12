@@ -1,5 +1,5 @@
 let currentPage = 1;
-const pageSize = 20;
+const pageSize = 32; // 每页显示32张图片 (4列 × 8行)
 let hasMore = true;
 let loading = false;
 let totalImages = 0;
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function initializeImageObserver() {
     const options = {
         root: null,
-        rootMargin: '50px',
+        rootMargin: '100px', // 提前100px加载图片，改善用户体验
         threshold: 0.01
     };
     
@@ -53,38 +53,56 @@ function initializeImageObserver() {
 
 // 初始化无限滚动
 function initializeInfiniteScroll() {
-    const scrollThreshold = 300; // 距离底部多少像素时触发加载
+    const scrollThreshold = 500; // 距离底部多少像素时触发加载
+    let scrollTimeout;
     
     window.addEventListener('scroll', () => {
-        const scrollPosition = window.innerHeight + window.scrollY;
-        const documentHeight = document.documentElement.scrollHeight;
-        
-        if (scrollPosition >= documentHeight - scrollThreshold && hasMore && !loading) {
-            loadMoreImages();
-        }
-    });
+        // 防抖处理，避免频繁触发
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            const scrollPosition = window.innerHeight + window.scrollY;
+            const documentHeight = document.documentElement.scrollHeight;
+            
+            if (scrollPosition >= documentHeight - scrollThreshold && hasMore && !loading) {
+                loadMoreImages();
+            }
+        }, 150);
+    }, { passive: true });
 }
 
 async function loadImages() {
     if (loading || !hasMore) return;
     
     loading = true;
+    const isFirstPage = currentPage === 1;
     
     // 只在第一页时显示加载提示
-    if (currentPage === 1) {
+    if (isFirstPage) {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('masonry').style.display = 'none';
         document.getElementById('pagination').style.display = 'none';
     }
     
     try {
+        const startTime = performance.now();
+        
+        // 创建超时控制
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+        
         const response = await fetch(`/api/images/query?page=${currentPage}&size=${pageSize}`, {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
+        
         const result = await response.json();
+        const endTime = performance.now();
+        
+        console.log(`加载第${currentPage}页耗时: ${(endTime - startTime).toFixed(2)}ms`);
         
         if (result.success && result.data.images.length > 0) {
-            displayImages(result.data.images, currentPage === 1);
+            displayImages(result.data.images, isFirstPage);
             totalImages = result.data.total;
             displayedCount += result.data.images.length;
             
@@ -101,21 +119,27 @@ async function loadImages() {
                 loadMoreBtn.textContent = hasMore ? '加载更多' : '已加载全部';
             }
             
-            if (currentPage === 1) {
+            if (isFirstPage) {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('masonry').style.display = 'grid';
                 document.getElementById('pagination').style.display = 'flex';
             }
         } else {
-            if (currentPage === 1) {
+            if (isFirstPage) {
                 showNoImages();
             }
             hasMore = false;
         }
     } catch (error) {
         console.error('加载图片失败:', error);
-        showError('加载图片失败: ' + error.message);
-        if (currentPage === 1) {
+        let errorMsg = '加载图片失败';
+        if (error.name === 'AbortError') {
+            errorMsg = '加载超时，请检查网络连接';
+        } else if (error.message) {
+            errorMsg = '加载图片失败: ' + error.message;
+        }
+        showError(errorMsg);
+        if (isFirstPage) {
             document.getElementById('loading').style.display = 'none';
         }
     } finally {
@@ -152,10 +176,10 @@ function createImageItem(image) {
     div.className = 'image-item';
     div.onclick = () => openModal(image.id);
     
-    const thumbnailUrl = `/images/${image.id}@w200_h150`;
+    const thumbnailUrl = `/images/${image.id}@w400_h200_jpeg_q80`;
     
     div.innerHTML = `
-        <img data-src="${thumbnailUrl}" alt="${image.original_name}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150'%3E%3Crect fill='%23064e5f' width='200' height='150'/%3E%3C/svg%3E" loading="lazy">
+        <img data-src="${thumbnailUrl}" alt="${image.original_name}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Crect fill='%23064e5f' width='400' height='200'/%3E%3C/svg%3E" loading="lazy">
         <div class="image-info">
             <div class="image-name" title="${image.original_name}">${image.original_name}</div>
             <div class="image-meta">
