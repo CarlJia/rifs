@@ -110,7 +110,7 @@ pub async fn get_image(
 
             // 尝试从缓存获取
             let connection = app_state.db_pool().get_connection();
-            let cache_service = CacheService::new(connection.clone())?;
+            let cache_service = CacheService::new(connection)?;
             cache_service.ensure_cache_dir().await?;
 
             if let Ok(Some(cached)) = cache_service.get_cache(&cache_key).await {
