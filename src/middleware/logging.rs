@@ -4,13 +4,17 @@ use tracing::info;
 
 /// 简单的HTTP请求日志中间件
 pub async fn log_requests(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     request: axum::http::Request<axum::body::Body>,
     next: Next,
 ) -> Response {
     let method = request.method().clone();
     let uri = request.uri().clone();
-    let client_ip = addr.ip();
+
+    let client_ip = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ConnectInfo(addr)| addr.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
 
     let start = std::time::Instant::now();
     let response = next.run(request).await;

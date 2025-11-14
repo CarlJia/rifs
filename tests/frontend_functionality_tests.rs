@@ -9,16 +9,17 @@ use tower::ServiceExt;
 
 use rifs::app_state::AppState;
 use rifs::routes::create_routes;
+use rifs::utils::AppError;
 
 /// 创建测试应用状态
 async fn create_test_app() -> axum::Router {
-    // 设置测试环境变量
-    std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", "sqlite::memory:");
-    std::env::set_var("RIFS_SERVER_HOST", "127.0.0.1");
-    std::env::set_var("RIFS_SERVER_PORT", "3000");
-    
-    // 初始化配置
-    rifs::config::AppConfig::init(None).expect("Failed to initialize config");
+    // 初始化配置（如果配置已初始化，忽略错误）
+    if let Err(err) = rifs::config::AppConfig::init(Some("config_test")) {
+        // 只有在错误不是"配置已被初始化"时才panic
+        if !matches!(err, AppError::Internal(ref msg) if msg == "配置已被初始化") {
+            panic!("Failed to initialize config: {}", err);
+        }
+    }
     
     let app_state = AppState::new().await.expect("Failed to create app state");
     create_routes(app_state.clone(), app_state.config())
@@ -38,17 +39,17 @@ async fn test_upload_endpoint_functionality() {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
     ];
 
-    // 创建 multipart form data
+    // 创建 multipart form data - 使用二进制数据而不是hex编码
     let boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
-    let form_data = format!(
-        "--{boundary}\r\n\
-         Content-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\n\
-         Content-Type: image/png\r\n\r\n\
-         {data}\r\n\
-         --{boundary}--\r\n",
-        boundary = boundary,
-        data = hex::encode(&png_data)
-    );
+    
+    // 构造multipart body
+    let mut form_data = Vec::new();
+    form_data.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    form_data.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\n");
+    form_data.extend_from_slice(b"Content-Type: image/png\r\n\r\n");
+    form_data.extend_from_slice(&png_data);
+    form_data.extend_from_slice(b"\r\n");
+    form_data.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
     let request = Request::builder()
         .method(Method::POST)
@@ -59,17 +60,19 @@ async fn test_upload_endpoint_functionality() {
 
     let response = app.oneshot(request).await.unwrap();
 
-    // 上传应该成功
-    assert_eq!(response.status(), StatusCode::OK);
-
+    // 获取响应body
+    let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     
     let body_str = String::from_utf8(body.to_vec()).unwrap();
+
+    // 上传应该成功
+    assert_eq!(status, StatusCode::OK);
     
     // 验证响应是有效的 JSON
-    assert!(body_str.contains("id"));
+    assert!(body_str.contains("hash"));
     assert!(body_str.contains("success"));
 }
 

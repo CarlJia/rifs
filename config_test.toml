@@ -1,0 +1,109 @@
+# RIFS 图床服务配置文件
+# 这是自动生成的默认配置文件，请根据实际需求修改
+# 修改后请重新启动服务使配置生效
+
+# 配置单位说明:
+# 字节大小: 支持 B, KB, MB, GB, TB (如: "10MB", "1GB")
+# 时间长度: 支持 s, m, h, d, w, y (如: "30s", "1h", "7d")
+# 大小写不敏感，支持小数，可省略单位
+
+# ========================================
+# 服务器配置
+# ========================================
+
+[server]
+# 服务器监听地址
+host = "0.0.0.0"
+# 服务器监听端口
+port = 3000
+# 是否启用CORS跨域
+enable_cors = true
+# 请求处理超时时间
+request_timeout = "1m"
+
+# ========================================
+# 认证配置
+# ========================================
+
+[auth]
+# 是否启用令牌认证
+enabled = false
+# 当启用认证时需要提供的令牌（建议设置为复杂随机字符串）
+token = "<PASSWORD>"
+# 可选：自定义认证头名称，默认使用 Authorization
+header_name = "Authorization"
+
+# ========================================
+# 存储配置
+# ========================================
+
+[storage]
+# 上传文件存储目录
+upload_dir = "uploads"
+# 最大文件大小
+max_file_size = "10MB"
+
+# ========================================
+# 日志配置  
+# ========================================
+
+[logging]
+# 日志级别: trace, debug, info, warn, error
+level = "info"
+# 是否启用日志颜色
+enable_color = true
+# 日志目录路径（留空表示只输出到控制台）
+log_dir = ""
+# 日志文件大小限制（0表示仅按天轮转）
+max_log_size = "10MB"
+
+# ========================================
+# 缓存配置
+# ========================================
+
+[cache]
+# 静态文件缓存时间
+max_age = "1y"
+# 转换结果缓存目录
+cache_dir = "cache"
+# 启用转换结果缓存
+enable_transform_cache = true
+# 缓存最大项目数量
+max_cache_entries = 10000
+# 缓存最大总大小
+max_cache_size = "100MB"
+# 缓存项最大生存时间
+max_cache_age = "30d"
+# 自动清理间隔
+auto_cleanup_interval = "1h"
+# 热度评分衰减因子（0.0-1.0）
+heat_decay_factor = 0.98
+# 最小热度评分阈值
+min_heat_score = 0.1
+# 空间使用阈值百分比（0.0-1.0），超过此阈值才触发基于热度的清理
+space_threshold_percent = 0.8
+
+# ========================================
+# 数据库配置
+# ========================================
+
+[database]
+# 数据库类型: sqlite, postgres, mysql
+database_type = "sqlite"
+# 数据库连接字符串
+connection_string = "sqlite::memory:"
+# 最大连接数
+max_connections = 20
+# 最小连接数
+min_connections = 4
+# 连接超时时间
+connect_timeout = "30s"
+# 空闲连接超时时间
+idle_timeout = "5m"
+# 连接最大生存时间
+max_lifetime = "30m"
+
+# 数据库连接字符串示例：
+# SQLite: "sqlite:./data/images.db"
+# PostgreSQL: "postgres://username:password@localhost:5432/images"
+# MySQL: "mysql://username:password@localhost:3306/images"
