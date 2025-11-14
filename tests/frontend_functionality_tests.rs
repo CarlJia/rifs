@@ -13,13 +13,8 @@ use rifs::utils::AppError;
 
 /// 创建测试应用状态
 async fn create_test_app() -> axum::Router {
-    // 设置测试环境变量
-    std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", "sqlite::memory:");
-    std::env::set_var("RIFS_SERVER_HOST", "127.0.0.1");
-    std::env::set_var("RIFS_SERVER_PORT", "3000");
-    
     // 初始化配置（如果配置已初始化，忽略错误）
-    if let Err(err) = rifs::config::AppConfig::init(None) {
+    if let Err(err) = rifs::config::AppConfig::init(Some("config_test")) {
         // 只有在错误不是"配置已被初始化"时才panic
         if !matches!(err, AppError::Internal(ref msg) if msg == "配置已被初始化") {
             panic!("Failed to initialize config: {}", err);
