@@ -3,7 +3,7 @@
 
 use axum::{
     body::Body,
-    http::{Request, StatusCode, Method},
+    http::{Method, Request, StatusCode},
 };
 use tower::ServiceExt;
 
@@ -20,7 +20,7 @@ async fn create_test_app() -> axum::Router {
             panic!("Failed to initialize config: {}", err);
         }
     }
-    
+
     let app_state = AppState::new().await.expect("Failed to create app state");
     create_routes(app_state.clone(), app_state.config())
 }
@@ -31,21 +31,22 @@ async fn test_upload_endpoint_functionality() {
 
     // 创建一个简单的测试图片数据 (1x1 PNG)
     let png_data = vec![
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
-        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00,
-        0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0x57, 0x63, 0xF8, 0x0F, 0x00, 0x00,
-        0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90,
+        0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0x57, 0x63, 0xF8,
+        0x0F, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
     ];
 
     // 创建 multipart form data - 使用二进制数据而不是hex编码
     let boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
-    
+
     // 构造multipart body
     let mut form_data = Vec::new();
     form_data.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-    form_data.extend_from_slice(b"Content-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\n");
+    form_data.extend_from_slice(
+        b"Content-Disposition: form-data; name=\"file\"; filename=\"test.png\"\r\n",
+    );
     form_data.extend_from_slice(b"Content-Type: image/png\r\n\r\n");
     form_data.extend_from_slice(&png_data);
     form_data.extend_from_slice(b"\r\n");
@@ -54,7 +55,10 @@ async fn test_upload_endpoint_functionality() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/upload")
-        .header("content-type", format!("multipart/form-data; boundary={}", boundary))
+        .header(
+            "content-type",
+            format!("multipart/form-data; boundary={}", boundary),
+        )
         .body(Body::from(form_data))
         .unwrap();
 
@@ -65,12 +69,12 @@ async fn test_upload_endpoint_functionality() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
 
     // 上传应该成功
     assert_eq!(status, StatusCode::OK);
-    
+
     // 验证响应是有效的 JSON
     assert!(body_str.contains("hash"));
     assert!(body_str.contains("success"));
@@ -92,9 +96,9 @@ async fn test_images_query_endpoint() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证响应结构
     assert!(body_str.contains("success"));
     assert!(body_str.contains("data"));
@@ -116,9 +120,9 @@ async fn test_stats_endpoint() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证统计信息结构
     assert!(body_str.contains("success"));
     assert!(body_str.contains("data"));
@@ -140,9 +144,9 @@ async fn test_cache_stats_endpoint() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证缓存统计结构
     assert!(body_str.contains("success"));
     assert!(body_str.contains("data"));
@@ -201,16 +205,24 @@ async fn test_api_response_format() {
 
         let response = app.clone().oneshot(request).await.unwrap();
 
-        assert_eq!(response.status(), StatusCode::OK, "Endpoint {} should return 200", endpoint);
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "Endpoint {} should return 200",
+            endpoint
+        );
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        
+
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        
+
         // 所有 API 响应都应该是有效的 JSON
-        assert!(body_str.starts_with('{') || body_str.starts_with('['), 
-                "Endpoint {} should return JSON", endpoint);
+        assert!(
+            body_str.starts_with('{') || body_str.starts_with('['),
+            "Endpoint {} should return JSON",
+            endpoint
+        );
     }
 }

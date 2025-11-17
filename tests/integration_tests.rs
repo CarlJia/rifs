@@ -3,20 +3,29 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use rifs::app_state::AppState;
 use rifs::routes::create_routes;
 use rifs::utils::AppError;
 
+static TEST_DB_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 /// 创建测试应用状态
 async fn create_test_app() -> axum::Router {
     // 使用基于文件的SQLite数据库，存储在临时目录中
     // 这样每个测试运行都会创建一个新的数据库文件
-    let db_path = format!("sqlite:test_db_{}.sqlite", std::process::id());
+    let sequence = TEST_DB_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_nanos();
+    let unique_id = format!("{}_{}_{}", std::process::id(), sequence, timestamp);
+    let db_path = format!("sqlite:test_db_{}.sqlite", unique_id);
     std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", &db_path);
     std::env::set_var("RIFS_SERVER_HOST", "127.0.0.1");
     std::env::set_var("RIFS_SERVER_PORT", "3000");
-    
+
     // 初始化配置（如果配置已初始化，忽略错误）
     if let Err(err) = rifs::config::AppConfig::init(None) {
         // 只有在错误不是"配置已被初始化"时才panic
@@ -24,7 +33,7 @@ async fn create_test_app() -> axum::Router {
             panic!("Failed to initialize config: {}", err);
         }
     }
-    
+
     let app_state = AppState::new().await.expect("Failed to create app state");
     create_routes(app_state.clone(), app_state.config())
 }
@@ -33,10 +42,7 @@ async fn create_test_app() -> axum::Router {
 async fn test_index_page() {
     let app = create_test_app().await;
 
-    let request = Request::builder()
-        .uri("/")
-        .body(Body::empty())
-        .unwrap();
+    let request = Request::builder().uri("/").body(Body::empty()).unwrap();
 
     let response = app.oneshot(request).await.unwrap();
 
@@ -51,9 +57,9 @@ async fn test_index_page() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证页面内容
     assert!(body_str.contains("RIFS"));
     assert!(body_str.contains("高性能 Rust 图床服务"));
@@ -83,9 +89,9 @@ async fn test_gallery_page() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证页面内容
     assert!(body_str.contains("图片库"));
     assert!(body_str.contains("统计信息"));
@@ -114,9 +120,9 @@ async fn test_static_css_file() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证 CSS 内容
     assert!(body_str.contains(".container"));
     assert!(body_str.contains(".header"));
@@ -145,9 +151,9 @@ async fn test_static_js_file() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证 JavaScript 内容
     assert!(body_str.contains("document.addEventListener"));
     assert!(body_str.contains("uploadForm"));
@@ -176,9 +182,9 @@ async fn test_static_gallery_js_file() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证 JavaScript 内容
     assert!(body_str.contains("loadImages"));
     assert!(body_str.contains("displayImages"));
@@ -233,9 +239,9 @@ async fn test_health_endpoint() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    
+
     let body_str = String::from_utf8(body.to_vec()).unwrap();
-    
+
     // 验证健康检查响应
     assert!(body_str.contains("status"));
     assert!(body_str.contains("timestamp"));

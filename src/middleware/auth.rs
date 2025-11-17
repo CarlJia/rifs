@@ -17,10 +17,7 @@ where
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         {
             let config = AppConfig::get();
             let auth_config = &config.auth;
@@ -59,11 +56,11 @@ where
                         return Ok(Self);
                     }
                 } else {
-                                // 对于其他 header 名称，直接比较值
-                                if value.trim() == expected_token {
-                                    return Ok(Self);
-                                }
-                            }
+                    // 对于其他 header 名称，直接比较值
+                    if value.trim() == expected_token {
+                        return Ok(Self);
+                    }
+                }
             }
 
             warn!("认证失败: 缺少或提供了无效的凭证");

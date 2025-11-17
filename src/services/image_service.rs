@@ -23,7 +23,11 @@ impl ImageService {
     }
 
     /// 保存上传的图片文件
-    pub async fn save_image(pool: &DatabasePool, data: &[u8]) -> Result<ImageInfo, AppError> {
+    pub async fn save_image(
+        pool: &DatabasePool,
+        data: &[u8],
+        original_filename: Option<String>,
+    ) -> Result<ImageInfo, AppError> {
         // 验证文件是否为空
         if data.is_empty() {
             return Err(AppError::InvalidFile);
@@ -60,6 +64,7 @@ impl ImageService {
             last_accessed: None,
             extension,
             access_count: 0,
+            original_filename,
         };
 
         // 计算文件路径

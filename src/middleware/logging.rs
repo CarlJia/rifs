@@ -3,10 +3,7 @@ use std::net::SocketAddr;
 use tracing::info;
 
 /// 简单的HTTP请求日志中间件
-pub async fn log_requests(
-    request: axum::http::Request<axum::body::Body>,
-    next: Next,
-) -> Response {
+pub async fn log_requests(request: axum::http::Request<axum::body::Body>, next: Next) -> Response {
     let method = request.method().clone();
     let uri = request.uri().clone();
 

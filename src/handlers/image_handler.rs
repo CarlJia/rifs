@@ -30,6 +30,8 @@ pub async fn upload_image(
 
         // 只处理名为 "file" 的字段
         if name == "file" {
+            let original_filename = field.file_name().map(|name| name.to_string());
+
             // 读取文件数据
             let data = field.bytes().await.map_err(|e| {
                 error!("读取文件数据失败: {}", e);
@@ -41,10 +43,15 @@ pub async fn upload_image(
                 return Err(AppError::InvalidFile);
             }
 
-            info!("开始保存图片: {}字节", data.len());
+            if let Some(ref filename) = original_filename {
+                info!("开始保存图片: {}字节, 原始文件名: {}", data.len(), filename);
+            } else {
+                info!("开始保存图片: {}字节", data.len());
+            }
 
             // 保存图片（后端会自动检测真实文件类型）
-            let image_info = ImageService::save_image(app_state.db_pool(), &data).await?;
+            let image_info =
+                ImageService::save_image(app_state.db_pool(), &data, original_filename).await?;
 
             info!("图片保存成功: {}", image_info.stored_name());
 
@@ -200,6 +207,11 @@ pub async fn get_image(
         "x-original-extension",
         image_info.extension.parse().unwrap(),
     );
+    if let Some(ref original_filename) = image_info.original_filename {
+        if let Ok(value) = axum::http::HeaderValue::from_str(original_filename) {
+            headers.insert("x-original-filename", value);
+        }
+    }
     headers.insert(
         "x-upload-time",
         image_info
