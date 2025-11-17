@@ -4,3 +4,5 @@ Cargo.lock
 /data
 /uploads
 config.toml
+test_db_*.sqlite
+:memory:

@@ -10,8 +10,10 @@ use rifs::utils::AppError;
 
 /// 创建测试应用状态
 async fn create_test_app() -> axum::Router {
-    // 设置测试环境变量
-    std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", "sqlite::memory:");
+    // 使用基于文件的SQLite数据库，存储在临时目录中
+    // 这样每个测试运行都会创建一个新的数据库文件
+    let db_path = format!("sqlite:test_db_{}.sqlite", std::process::id());
+    std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", &db_path);
     std::env::set_var("RIFS_SERVER_HOST", "127.0.0.1");
     std::env::set_var("RIFS_SERVER_PORT", "3000");
     

@@ -110,34 +110,125 @@ document.addEventListener('DOMContentLoaded', async function() {
     function displayResults(responses) {
         let html = '<div class="success">上传成功！</div>';
         
-        responses.forEach(({ file, result }) => {
+        responses.forEach(({ file, result }, index) => {
             const imageUrl = `${window.location.origin}/images/${result.id}`;
+            const markdownUrl = `![](${imageUrl})`;
+            
             html += `
-                <div class="success">
-                    <strong>${file}</strong><br>
-                    <small>ID: ${result.id}</small><br>
-                    <a href="${imageUrl}" target="_blank">${imageUrl}</a>
+                <div class="upload-item">
+                    <div class="upload-item-header">
+                        <div>
+                            <div class="upload-item-name">${file}</div>
+                            <div class="upload-item-id">ID: ${result.id}</div>
+                        </div>
+                        <a href="${imageUrl}" target="_blank" style="color:#06b6d4;text-decoration:none;padding:4px 8px;border:1px solid rgba(6,182,212,0.3);border-radius:4px;font-size:0.8rem;">查看</a>
+                    </div>
+                    <div class="format-tabs">
+                        <button class="format-tab active" data-format="url" data-index="${index}">URL</button>
+                        <button class="format-tab" data-format="markdown" data-index="${index}">Markdown</button>
+                        <button class="format-tab" data-format="html" data-index="${index}">HTML</button>
+                    </div>
+                    <div class="format-content" data-content-url="${imageUrl}" data-content-markdown="${markdownUrl}" data-content-html='<img src="${imageUrl}" alt="${file}" />'>${imageUrl}</div>
+                    <div class="action-buttons">
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="url">复制 URL</button>
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="markdown">复制 Markdown</button>
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="html">复制 HTML</button>
+                    </div>
                 </div>
             `;
         });
 
         uploadResult.innerHTML = html;
+        
+        // 绑定格式切换事件
+        document.querySelectorAll('.format-tab').forEach(tab => {
+            tab.addEventListener('click', switchFormat);
+        });
+        
+        // 绑定复制按钮事件
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', handleCopyBtn);
+        });
 
         if (autoCopy.checked && responses.length === 1) {
             const url = `${window.location.origin}/images/${responses[0].result.id}`;
             copyToClipboard(url);
         }
     }
+    
+    function switchFormat(e) {
+        const format = e.target.dataset.format;
+        const index = e.target.dataset.index;
+        const container = e.target.closest('.upload-item');
+        const content = container.querySelector('.format-content');
+        
+        // 更新tab状态
+        container.querySelectorAll('.format-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        e.target.classList.add('active');
+        
+        // 更新内容
+        let contentText = '';
+        switch(format) {
+            case 'url':
+                contentText = content.dataset.contentUrl;
+                break;
+            case 'markdown':
+                contentText = content.dataset.contentMarkdown;
+                break;
+            case 'html':
+                contentText = content.dataset.contentHtml;
+                break;
+        }
+        content.textContent = contentText;
+    }
+    
+    function handleCopyBtn(e) {
+        const format = e.target.dataset.copyFormat;
+        const index = e.target.dataset.copyIndex;
+        const container = e.target.closest('.upload-item');
+        const content = container.querySelector('.format-content');
+        
+        let contentText = '';
+        switch(format) {
+            case 'url':
+                contentText = content.dataset.contentUrl;
+                break;
+            case 'markdown':
+                contentText = content.dataset.contentMarkdown;
+                break;
+            case 'html':
+                contentText = content.dataset.contentHtml;
+                break;
+        }
+        
+        copyToClipboard(contentText, e.target);
+    }
 
     function showError(message) {
         uploadResult.innerHTML = `<div class="error">${message}</div>`;
     }
 
-    function copyToClipboard(text) {
+    function copyToClipboard(text, button = null) {
         navigator.clipboard.writeText(text).then(() => {
-            showToast('链接已复制到剪贴板');
+            if (button) {
+                const originalText = button.textContent;
+                button.classList.add('copied');
+                button.textContent = '已复制 ✓';
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.textContent = originalText;
+                }, 2000);
+            } else {
+                showToast('链接已复制到剪贴板');
+            }
         }).catch(() => {
-            showToast('复制失败，请手动复制');
+            if (button) {
+                showToast('复制失败，请手动复制');
+            } else {
+                showToast('复制失败，请手动复制');
+            }
         });
     }
 
