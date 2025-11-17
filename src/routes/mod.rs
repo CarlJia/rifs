@@ -11,9 +11,9 @@ use crate::app_state::AppState;
 use crate::config::AppConfig;
 use crate::handlers::{
     api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
-    delete_image, gallery_page, get_cache_stats, get_image, get_image_info, get_stats,
-    get_system_stats, health_check_detailed, login_page, query_images_get, query_images_post, serve_static,
-    upload_image, verify_token, get_auth_config,
+    delete_image, gallery_page, get_auth_config, get_cache_stats, get_image, get_image_info,
+    get_stats, get_system_stats, health_check_detailed, login_page, query_images_get,
+    query_images_post, serve_static, upload_image, verify_token,
 };
 use crate::middleware::{log_requests, request_timeout};
 

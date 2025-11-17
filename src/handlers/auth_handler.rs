@@ -1,11 +1,11 @@
+use crate::app_state::AppState;
+use crate::config::AppConfig;
+use crate::utils::AppError;
 use axum::{
     extract::State,
     response::{IntoResponse, Json},
 };
 use serde::{Deserialize, Serialize};
-use crate::app_state::AppState;
-use crate::config::AppConfig;
-use crate::utils::AppError;
 
 /// 认证配置响应
 #[derive(Debug, Serialize)]

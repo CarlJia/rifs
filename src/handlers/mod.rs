@@ -4,6 +4,7 @@ pub mod health_handler;
 pub mod image_handler;
 pub mod static_files;
 
+pub use auth_handler::{get_auth_config, verify_token};
 pub use cache_handler::{
     auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
     get_cache_stats,
@@ -14,4 +15,3 @@ pub use image_handler::{
     upload_image,
 };
 pub use static_files::{api_docs, gallery_page, login_page, serve_static};
-pub use auth_handler::{verify_token, get_auth_config};

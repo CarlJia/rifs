@@ -72,7 +72,10 @@ impl ImageRepository {
         }
 
         if let Some(search) = &query.search {
-            condition = condition.add(image::Column::Hash.contains(search));
+            let search_condition = Condition::any()
+                .add(image::Column::Hash.contains(search))
+                .add(image::Column::OriginalFilename.contains(search));
+            condition = condition.add(search_condition);
         }
 
         condition

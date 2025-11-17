@@ -28,6 +28,9 @@ pub struct Model {
     /// 访问次数
     #[sea_orm(default_value = 0)]
     pub access_count: i64,
+
+    /// 原始文件名
+    pub original_filename: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -45,6 +48,7 @@ impl From<Model> for crate::models::ImageInfo {
             last_accessed: model.last_accessed,
             extension: model.extension,
             access_count: model.access_count,
+            original_filename: model.original_filename,
         }
     }
 }
@@ -59,6 +63,7 @@ impl From<&crate::models::ImageInfo> for ActiveModel {
             last_accessed: Set(info.last_accessed),
             extension: Set(info.extension.clone()),
             access_count: Set(info.access_count),
+            original_filename: Set(info.original_filename.clone()),
         }
     }
 }

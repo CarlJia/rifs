@@ -14,7 +14,11 @@ pub async fn serve_static(Path(path): Path<String>) -> impl IntoResponse {
     // 安全检查：确保文件在 web 目录内
     match file_path.canonicalize() {
         Ok(canonical_path) => {
-            if !canonical_path.starts_with(&base_path.canonicalize().unwrap_or_else(|_| base_path.clone())) {
+            if !canonical_path.starts_with(
+                &base_path
+                    .canonicalize()
+                    .unwrap_or_else(|_| base_path.clone()),
+            ) {
                 return (StatusCode::FORBIDDEN, "Access denied").into_response();
             }
         }

@@ -18,6 +18,8 @@ pub struct ImageInfo {
     pub extension: String,
     /// 访问次数
     pub access_count: i64,
+    /// 原始文件名
+    pub original_filename: Option<String>,
 }
 
 impl ImageInfo {
