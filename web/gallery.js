@@ -340,8 +340,8 @@ async function loadStats() {
         const result = await response.json();
         
         if (result.success) {
-            document.getElementById('total-count').textContent = result.data.total_images;
-            totalImages = result.data.total_images;
+            document.getElementById('total-count').textContent = result.data.total_count;
+            totalImages = result.data.total_count;
         }
     } catch (error) {
         console.error('加载统计信息失败:', error);
