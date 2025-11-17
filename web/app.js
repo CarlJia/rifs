@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         let html = '<div class="success">上传成功！</div>';
         
         responses.forEach(({ file, result }, index) => {
-            const imageUrl = `${window.location.origin}/images/${result.id}`;
+            const imageUrl = `${window.location.origin}/images/${result.data.hash}`;
             const markdownUrl = `![](${imageUrl})`;
             
             html += `
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <div class="upload-item-header">
                         <div>
                             <div class="upload-item-name">${file}</div>
-                            <div class="upload-item-id">ID: ${result.id}</div>
+                            <div class="upload-item-id">ID: ${result.data.hash}</div>
                         </div>
                         <a href="${imageUrl}" target="_blank" style="color:#06b6d4;text-decoration:none;padding:4px 8px;border:1px solid rgba(6,182,212,0.3);border-radius:4px;font-size:0.8rem;">查看</a>
                     </div>
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         if (autoCopy.checked && responses.length === 1) {
-            const url = `${window.location.origin}/images/${responses[0].result.id}`;
+            const url = `${window.location.origin}/images/${responses[0].result.hash}`;
             copyToClipboard(url);
         }
     }

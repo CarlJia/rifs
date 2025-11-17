@@ -50,7 +50,7 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         // 获取统计信息
         .route("/api/stats", get(get_stats))
         // 删除图片
-        .route("/images/{filename}", delete(delete_image))
+        .route("/api/images/{filename}", delete(delete_image))
         // 缓存管理接口（简化版）
         .route("/api/cache/stats", get(get_cache_stats))
         .route("/api/cache/cleanup/auto", post(auto_cleanup_cache))

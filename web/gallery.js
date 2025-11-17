@@ -123,7 +123,7 @@ async function loadImages(reset = false) {
         const images = result.data.items || result.data.images || [];
         const imagesWithId = images.map(item => ({
             id: item.hash,  // 使用 hash 作为 id
-            original_name: `${item.hash.substring(0, 8)}.${item.extension}`,
+            original_name: item.original_filename,
             mime_type: item.mime_type,
             size: item.size,
             created_at: item.created_at
