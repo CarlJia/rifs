@@ -108,31 +108,48 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     function displayResults(responses) {
-        let html = '<div class="success">上传成功！</div>';
+        let html = '<div class="success">✓ 上传成功！共 ' + responses.length + ' 个文件</div>';
         
         responses.forEach(({ file, result }, index) => {
-            const imageUrl = `${window.location.origin}/images/${result.data.hash}`;
-            const markdownUrl = `![](${imageUrl})`;
+            const { hash } = result.data;
+            const imageUrl = `${window.location.origin}/images/${hash}`;
+            const displayIndex = String(index + 1).padStart(2, '0');
+            const safeFileName = escapeHtml(file || '');
+            const safeHash = escapeHtml(hash);
+            const htmlCode = `<img src='${imageUrl}' alt='${safeFileName}' />`;
+            const urlAttr = escapeHtml(imageUrl);
+            const markdownUrl = `![${safeFileName}](${imageUrl})`;
+            const markdownAttr = escapeHtml(markdownUrl);
+            const htmlAttr = escapeHtml(htmlCode); // 不转义HTML代码，保持原始格式
             
             html += `
                 <div class="upload-item">
                     <div class="upload-item-header">
-                        <div>
-                            <div class="upload-item-name">${file}</div>
-                            <div class="upload-item-id">ID: ${result.data.hash}</div>
+                        <div class="upload-item-info">
+                            <span class="upload-item-chip">图片 #${displayIndex}</span>
+                            <div class="upload-item-name">
+                                <span class="upload-item-index">${displayIndex}</span>
+                                <span title="${safeFileName}">${safeFileName}</span>
+                            </div>
+                            <div class="upload-item-id">🔑 ${safeHash}</div>
                         </div>
-                        <a href="${imageUrl}" target="_blank" style="color:#06b6d4;text-decoration:none;padding:4px 8px;border:1px solid rgba(6,182,212,0.3);border-radius:4px;font-size:0.8rem;">查看</a>
+                        <div class="upload-item-actions">
+                            <a href="${imageUrl}" target="_blank" rel="noopener noreferrer" class="view-btn">
+                                <span>👁️</span>
+                                <span>预览</span>
+                            </a>
+                        </div>
                     </div>
                     <div class="format-tabs">
-                        <button class="format-tab active" data-format="url" data-index="${index}">URL</button>
-                        <button class="format-tab" data-format="markdown" data-index="${index}">Markdown</button>
-                        <button class="format-tab" data-format="html" data-index="${index}">HTML</button>
+                        <button class="format-tab active" data-format="url" data-index="${index}">🔗 URL</button>
+                        <button class="format-tab" data-format="markdown" data-index="${index}">📝 Markdown</button>
+                        <button class="format-tab" data-format="html" data-index="${index}">💻 HTML</button>
                     </div>
-                    <div class="format-content" data-content-url="${imageUrl}" data-content-markdown="${markdownUrl}" data-content-html='<img src="${imageUrl}" alt="${file}" />'>${imageUrl}</div>
+                    <div class="format-content" data-content-url="${urlAttr}" data-content-markdown="${markdownAttr}" data-content-html="${htmlAttr}">${urlAttr}</div>
                     <div class="action-buttons">
-                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="url">复制 URL</button>
-                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="markdown">复制 Markdown</button>
-                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="html">复制 HTML</button>
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="url">📋 复制 URL</button>
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="markdown">📋 复制 Markdown</button>
+                        <button class="copy-btn" data-copy-index="${index}" data-copy-format="html">📋 复制 HTML</button>
                     </div>
                 </div>
             `;
@@ -151,7 +168,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         if (autoCopy.checked && responses.length === 1) {
-            const url = `${window.location.origin}/images/${responses[0].result.hash}`;
+            const singleHash = responses[0].result.data.hash;
+            const url = `${window.location.origin}/images/${singleHash}`;
             copyToClipboard(url);
         }
     }
@@ -206,30 +224,75 @@ document.addEventListener('DOMContentLoaded', async function() {
         copyToClipboard(contentText, e.target);
     }
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : text;
+        return div.innerHTML;
+    }
+
     function showError(message) {
-        uploadResult.innerHTML = `<div class="error">${message}</div>`;
+        uploadResult.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
     }
 
     function copyToClipboard(text, button = null) {
-        navigator.clipboard.writeText(text).then(() => {
-            if (button) {
-                const originalText = button.textContent;
-                button.classList.add('copied');
-                button.textContent = '已复制 ✓';
-                setTimeout(() => {
-                    button.classList.remove('copied');
-                    button.textContent = originalText;
-                }, 2000);
+        // 使用现代Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                handleCopySuccess(button);
+            }).catch(() => {
+                // 如果Clipboard API失败，使用传统方法
+                fallbackCopyToClipboard(text, button);
+            });
+        } else {
+            // 浏览器不支持Clipboard API，使用传统方法
+            fallbackCopyToClipboard(text, button);
+        }
+    }
+
+    function fallbackCopyToClipboard(text, button = null) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                handleCopySuccess(button);
             } else {
-                showToast('链接已复制到剪贴板');
+                handleCopyError(button);
             }
-        }).catch(() => {
-            if (button) {
-                showToast('复制失败，请手动复制');
-            } else {
-                showToast('复制失败，请手动复制');
-            }
-        });
+        } catch (err) {
+            handleCopyError(button);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    function handleCopySuccess(button = null) {
+        if (button) {
+            const originalText = button.textContent;
+            button.classList.add('copied');
+            button.textContent = '已复制 ✓';
+            setTimeout(() => {
+                button.classList.remove('copied');
+                button.textContent = originalText;
+            }, 2000);
+        } else {
+            showToast('链接已复制到剪贴板');
+        }
+    }
+
+    function handleCopyError(button = null) {
+        if (button) {
+            showToast('复制失败，请手动复制');
+        } else {
+            showToast('复制失败，请手动复制');
+        }
     }
 
     function showToast(message) {
