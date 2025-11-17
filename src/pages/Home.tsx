@@ -7,6 +7,15 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Upload, Copy, Eye, Check } from 'lucide-react'
 
+// 获取 API 基础地址函数，与 api.ts 同步
+function getApiBaseUrl(): string {
+  const storedUrl = localStorage.getItem('api_base_url')
+  if (storedUrl) return storedUrl
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (envUrl) return envUrl
+  return 'http://localhost:3000'
+}
+
 interface UploadResult {
   filename: string
   hash: string
@@ -34,7 +43,7 @@ export function Home() {
         const file = files[i]
         const result = await uploadImage(file)
         const hash = result.data.hash
-        const url = `${window.location.origin}/images/${hash}`
+        const url = `${getApiBaseUrl()}/images/${hash}`
 
         newResults.push({
           filename: file.name,

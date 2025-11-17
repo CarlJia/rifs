@@ -15,16 +15,28 @@ export function useAuth() {
         const token = localStorage.getItem('auth_token')
         const headerName = localStorage.getItem('auth_header_name') || 'Authorization'
 
-        if (token) {
-          setAuthToken(token, headerName)
-          setIsAuthenticated(true)
-        } else if (required) {
-          setIsAuthenticated(false)
+        // 如果需要认证，必须有有效的令牌
+        if (required) {
+          if (token) {
+            setAuthToken(token, headerName)
+            setIsAuthenticated(true)
+          } else {
+            // 认证是必需的但没有令牌，保持未认证状态
+            setIsAuthenticated(false)
+          }
         } else {
-          setIsAuthenticated(true)
+          // 认证不是必需的，允许访问
+          if (token) {
+            setAuthToken(token, headerName)
+            setIsAuthenticated(true)
+          } else {
+            setIsAuthenticated(true)
+          }
         }
       } catch (error) {
         console.error('Failed to init auth:', error)
+        // 如果检查认证配置失败，默认允许访问（与原始行为一致）
+        setIsAuthenticated(true)
       } finally {
         setLoading(false)
       }

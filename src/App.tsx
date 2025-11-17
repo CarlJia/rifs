@@ -5,10 +5,11 @@ import { Login } from '@/pages/Login'
 import { Home } from '@/pages/Home'
 import { Gallery } from '@/pages/Gallery'
 import { CacheManagement } from '@/pages/CacheManagement'
+import { Settings } from '@/pages/Settings'
 import { Loader2 } from 'lucide-react'
 import '@/styles/globals.css'
 
-type Page = 'home' | 'gallery' | 'cache'
+type Page = 'home' | 'gallery' | 'cache' | 'settings'
 
 export default function App() {
   const { isAuthenticated, authRequired, loading } = useAuth()
@@ -34,6 +35,8 @@ export default function App() {
         return <Gallery />
       case 'cache':
         return <CacheManagement />
+      case 'settings':
+        return <Settings />
       default:
         return <Home />
     }

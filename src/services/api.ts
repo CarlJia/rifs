@@ -1,4 +1,24 @@
-const API_BASE_URL = 'http://localhost:3000'
+// 获取 API 基础地址，支持环境变量和本地存储配置
+function getApiBaseUrl(): string {
+  // 首先检查本地存储中的配置
+  const storedUrl = localStorage.getItem('api_base_url')
+  if (storedUrl) {
+    return storedUrl
+  }
+
+  // 其次检查环境变量
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (envUrl) {
+    return envUrl
+  }
+
+  // 默认值
+  return 'http://localhost:3000'
+}
+
+export function setApiBaseUrl(url: string) {
+  localStorage.setItem('api_base_url', url)
+}
 
 let authToken: string | null = null
 let headerName: string = 'Authorization'
@@ -22,7 +42,7 @@ function getHeaders(includeAuth = true): HeadersInit {
 
 export async function checkAuthRequired(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/config`)
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/config`)
     const result = await response.json()
     return result.enabled
   } catch (error) {
@@ -40,7 +60,7 @@ export async function uploadImage(file: File): Promise<any> {
     headers[headerName] = `Bearer ${authToken}`
   }
 
-  const response = await fetch(`${API_BASE_URL}/upload`, {
+  const response = await fetch(`${getApiBaseUrl()}/upload`, {
     method: 'POST',
     headers,
     body: formData,
@@ -59,7 +79,7 @@ export async function getGalleryImages(offset: number = 0, limit: number = 32): 
     limit: limit.toString(),
   })
 
-  const response = await fetch(`${API_BASE_URL}/api/images?${params}`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/images?${params}`, {
     headers: getHeaders(),
   })
 
@@ -71,7 +91,7 @@ export async function getGalleryImages(offset: number = 0, limit: number = 32): 
 }
 
 export async function getCacheStats(): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/api/cache/stats`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/cache/stats`, {
     headers: getHeaders(),
   })
 
@@ -87,7 +107,7 @@ export async function cleanCache(maxAge?: number, maxSize?: number): Promise<any
   if (maxAge !== undefined) body.max_age = maxAge
   if (maxSize !== undefined) body.max_size = maxSize
 
-  const response = await fetch(`${API_BASE_URL}/api/cache/clean`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/cache/clean`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(body),
@@ -101,7 +121,7 @@ export async function cleanCache(maxAge?: number, maxSize?: number): Promise<any
 }
 
 export async function getHealthStatus(): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/health`)
+  const response = await fetch(`${getApiBaseUrl()}/health`)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch health: ${response.statusText}`)

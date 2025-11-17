@@ -2,8 +2,16 @@ import React, { useEffect, useRef, useCallback } from 'react'
 import { getGalleryImages } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { Loader2, RefreshCw } from 'lucide-react'
+
+// 获取 API 基础地址函数，与 api.ts 同步
+function getApiBaseUrl(): string {
+  const storedUrl = localStorage.getItem('api_base_url')
+  if (storedUrl) return storedUrl
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (envUrl) return envUrl
+  return 'http://localhost:3000'
+}
 
 interface Image {
   hash: string
@@ -65,10 +73,10 @@ export function Gallery() {
   }, [hasMore, loading, offset, loadImages])
 
   const imageUrl = (hash: string, ext: string) =>
-    `http://localhost:3000/images/${hash}`
+    `${getApiBaseUrl()}/images/${hash}`
 
   const thumbnailUrl = (hash: string) =>
-    `http://localhost:3000/images/${hash}@w400_h200_jpeg_q80`
+    `${getApiBaseUrl()}/images/${hash}@w400_h200_jpeg_q80`
 
   return (
     <div className="space-y-6">
