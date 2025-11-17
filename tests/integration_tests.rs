@@ -3,23 +3,24 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use rifs::app_state::AppState;
 use rifs::routes::create_routes;
 use rifs::utils::AppError;
 
+static TEST_DB_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 /// 创建测试应用状态
 async fn create_test_app() -> axum::Router {
     // 使用基于文件的SQLite数据库，存储在临时目录中
     // 这样每个测试运行都会创建一个新的数据库文件
-    let unique_id = format!(
-        "{}_{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_nanos()
-    );
+    let sequence = TEST_DB_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_nanos();
+    let unique_id = format!("{}_{}_{}", std::process::id(), sequence, timestamp);
     let db_path = format!("sqlite:test_db_{}.sqlite", unique_id);
     std::env::set_var("RIFS_DATABASE_CONNECTION_STRING", &db_path);
     std::env::set_var("RIFS_SERVER_HOST", "127.0.0.1");

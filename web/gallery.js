@@ -5,6 +5,11 @@ let loading = false;
 let totalImages = 0;
 let displayedCount = 0;
 let imageObserver = null;
+let selectMode = false;
+let selectedImages = new Set();
+let confirmCallback = null;
+let imageCache = new Map();
+let toastTimer = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // 检查是否需要认证
@@ -25,8 +30,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 初始化无限滚动
     initializeInfiniteScroll();
     
+    updateSelectModeUI();
     loadStats();
-    loadImages();
+    loadImages(true);
 });
 
 // 初始化 Intersection Observer 用于图片懒加载
@@ -70,8 +76,18 @@ function initializeInfiniteScroll() {
     }, { passive: true });
 }
 
-async function loadImages() {
-    if (loading || !hasMore) return;
+async function loadImages(reset = false) {
+    if (loading || (!hasMore && !reset)) return;
+    
+    if (reset) {
+        currentPage = 1;
+        hasMore = true;
+        displayedCount = 0;
+        const masonry = document.getElementById('masonry');
+        if (masonry) {
+            masonry.innerHTML = '';
+        }
+    }
     
     loading = true;
     const isFirstPage = currentPage === 1;
@@ -186,19 +202,79 @@ function displayImages(images, replace = false) {
 function createImageItem(image) {
     const div = document.createElement('div');
     div.className = 'image-item';
-    div.onclick = () => openModal(image.id);
+    div.dataset.imageId = image.id;
+    div.dataset.displayName = image.original_name;
     
-    const thumbnailUrl = `/images/${image.id}@w400_h200_jpeg_q80`;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'image-checkbox';
+    checkbox.dataset.imageId = image.id;
+    checkbox.checked = selectedImages.has(image.id);
+    checkbox.addEventListener('click', (event) => event.stopPropagation());
+    checkbox.addEventListener('change', (event) => {
+        handleSelectionChange(image.id, event.target.checked);
+    });
+    div.appendChild(checkbox);
     
-    div.innerHTML = `
-        <img data-src="${thumbnailUrl}" alt="${image.original_name}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Crect fill='%23064e5f' width='400' height='200'/%3E%3C/svg%3E" loading="lazy">
-        <div class="image-info">
-            <div class="image-name" title="${image.original_name}">${image.original_name}</div>
-            <div class="image-meta">
-                ${formatSize(image.size)} • ${image.mime_type} • ${new Date(image.created_at).toLocaleDateString()}
-            </div>
-        </div>
-    `;
+    const actions = document.createElement('div');
+    actions.className = 'image-actions';
+    
+    const previewBtn = document.createElement('button');
+    previewBtn.className = 'action-btn';
+    previewBtn.textContent = '预览';
+    previewBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        openModal(image.id);
+    });
+    actions.appendChild(previewBtn);
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'action-btn delete';
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        confirmDeleteSingle(image.id);
+    });
+    actions.appendChild(deleteBtn);
+    
+    div.appendChild(actions);
+    
+    const img = document.createElement('img');
+    img.dataset.src = `/images/${image.id}@w400_h200_jpeg_q80`;
+    img.alt = image.original_name;
+    img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Crect fill='%23064e5f' width='400' height='200'/%3E%3C/svg%3E";
+    img.loading = 'lazy';
+    div.appendChild(img);
+    
+    const info = document.createElement('div');
+    info.className = 'image-info';
+    
+    const name = document.createElement('div');
+    name.className = 'image-name';
+    name.title = image.original_name;
+    name.textContent = image.original_name;
+    info.appendChild(name);
+    
+    const meta = document.createElement('div');
+    meta.className = 'image-meta';
+    meta.textContent = `${formatSize(image.size)} • ${image.mime_type} • ${new Date(image.created_at).toLocaleDateString()}`;
+    info.appendChild(meta);
+    
+    div.appendChild(info);
+    
+    if (selectedImages.has(image.id)) {
+        div.classList.add('selected');
+    }
+    
+    div.addEventListener('click', () => {
+        if (selectMode) {
+            const isChecked = !checkbox.checked;
+            checkbox.checked = isChecked;
+            handleSelectionChange(image.id, isChecked);
+        } else {
+            openModal(image.id);
+        }
+    });
     
     return div;
 }
@@ -333,4 +409,224 @@ function getAuthHeaders() {
         };
     }
     return {};
+}
+
+// 刷新图片列表
+function refreshImages(silent = false) {
+    clearSelection();
+    updateSelectModeUI();
+    loadImages(true);
+    loadStats();
+    if (!silent) {
+        showToast('图片列表已刷新', 'success');
+    }
+}
+
+// 切换批量选择模式
+function toggleSelectMode() {
+    selectMode = !selectMode;
+    if (!selectMode) {
+        selectedImages.clear();
+    }
+    updateSelectModeUI();
+}
+
+// 更新选择模式UI
+function updateSelectModeUI() {
+    const batchActions = document.getElementById('batch-actions');
+    const selectModeBtn = document.getElementById('select-mode-btn');
+    
+    if (selectMode) {
+        batchActions.classList.add('active');
+        selectModeBtn.textContent = '取消选择';
+        selectModeBtn.style.background = '#94a3b8';
+        document.body.classList.add('select-mode');
+    } else {
+        batchActions.classList.remove('active');
+        selectModeBtn.textContent = '批量选择';
+        selectModeBtn.style.background = '';
+        document.body.classList.remove('select-mode');
+    }
+    
+    updateSelectedCount();
+}
+
+// 处理图片选择变化
+function handleSelectionChange(imageId, isSelected) {
+    if (isSelected) {
+        selectedImages.add(imageId);
+    } else {
+        selectedImages.delete(imageId);
+    }
+    
+    const item = document.querySelector(`.image-item[data-image-id="${imageId}"]`);
+    if (item) {
+        if (isSelected) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    }
+    
+    updateSelectedCount();
+}
+
+// 更新已选择计数
+function updateSelectedCount() {
+    const selectInfo = document.getElementById('select-info');
+    if (selectInfo) {
+        selectInfo.textContent = `已选择 ${selectedImages.size} 项`;
+    }
+}
+
+// 全选当前页
+function selectAllVisible() {
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            handleSelectionChange(checkbox.dataset.imageId, true);
+        }
+    });
+}
+
+// 清除选择
+function clearSelection() {
+    selectedImages.clear();
+    const checkboxes = document.querySelectorAll('.image-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.querySelectorAll('.image-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    updateSelectedCount();
+}
+
+// 确认删除单张图片
+function confirmDeleteSingle(imageId) {
+    const item = document.querySelector(`.image-item[data-image-id="${imageId}"]`);
+    const imageName = item ? item.dataset.displayName : imageId.substring(0, 8);
+    
+    showConfirmDialog(
+        '确认删除',
+        `确定要删除图片 "${imageName}" 吗？此操作不可恢复。`,
+        () => deleteImages([imageId])
+    );
+}
+
+// 确认删除选中图片
+function confirmDeleteSelected() {
+    if (selectedImages.size === 0) {
+        showToast('请先选择要删除的图片', 'error');
+        return;
+    }
+    
+    showConfirmDialog(
+        '确认批量删除',
+        `确定要删除选中的 ${selectedImages.size} 张图片吗？此操作不可恢复。`,
+        () => deleteImages(Array.from(selectedImages))
+    );
+}
+
+// 删除图片
+async function deleteImages(imageIds) {
+    const totalCount = imageIds.length;
+    let successCount = 0;
+    let failedCount = 0;
+    
+    showToast(`正在删除 ${totalCount} 张图片...`, 'info');
+    
+    for (const imageId of imageIds) {
+        try {
+            const response = await fetch(`/api/images/${imageId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (response.ok) {
+                successCount++;
+                // 从DOM中移除该图片项
+                const item = document.querySelector(`.image-item[data-image-id="${imageId}"]`);
+                if (item) {
+                    item.remove();
+                }
+                selectedImages.delete(imageId);
+            } else {
+                failedCount++;
+                console.error(`删除图片 ${imageId} 失败:`, await response.text());
+            }
+        } catch (error) {
+            failedCount++;
+            console.error(`删除图片 ${imageId} 失败:`, error);
+        }
+    }
+    
+    // 显示删除结果
+    if (successCount > 0) {
+        showToast(`成功删除 ${successCount} 张图片${failedCount > 0 ? `，${failedCount} 张失败` : ''}`, failedCount > 0 ? 'error' : 'success');
+        
+        // 更新统计信息
+        totalImages -= successCount;
+        displayedCount -= successCount;
+        updateSelectedCount();
+        loadStats();
+        
+        // 如果当前页面没有图片了，尝试加载更多
+        const masonry = document.getElementById('masonry');
+        if (masonry.children.length === 0 && hasMore) {
+            loadImages();
+        } else if (masonry.children.length === 0) {
+            showNoImages();
+        }
+    } else {
+        showToast(`删除失败，请重试`, 'error');
+    }
+    
+    // 退出选择模式
+    if (selectMode) {
+        selectMode = false;
+        updateSelectModeUI();
+    }
+}
+
+// 显示确认对话框
+function showConfirmDialog(title, message, onConfirm) {
+    const dialog = document.getElementById('confirm-dialog');
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    
+    confirmCallback = onConfirm;
+    dialog.classList.add('show');
+}
+
+// 关闭确认对话框
+function closeConfirmDialog() {
+    const dialog = document.getElementById('confirm-dialog');
+    dialog.classList.remove('show');
+    confirmCallback = null;
+}
+
+// 确认对话框的确认按钮
+function confirmDialogAction() {
+    if (confirmCallback) {
+        confirmCallback();
+    }
+    closeConfirmDialog();
+}
+
+// 显示Toast提示
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    
+    if (toastTimer) {
+        clearTimeout(toastTimer);
+    }
+    
+    toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+        toastTimer = null;
+    }, 3000);
 }
