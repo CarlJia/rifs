@@ -113,14 +113,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         responses.forEach(({ file, result }, index) => {
             const { hash } = result.data;
             const imageUrl = `${window.location.origin}/images/${hash}`;
-            const markdownUrl = `![](${imageUrl})`;
             const displayIndex = String(index + 1).padStart(2, '0');
             const safeFileName = escapeHtml(file || '');
             const safeHash = escapeHtml(hash);
-            const htmlCode = `<img src="${imageUrl}" alt="${safeFileName}" />`;
+            const htmlCode = `<img src='${imageUrl}' alt='${safeFileName}' />`;
             const urlAttr = escapeHtml(imageUrl);
+            const markdownUrl = `![${safeFileName}](${imageUrl})`;
             const markdownAttr = escapeHtml(markdownUrl);
-            const htmlAttr = escapeHtml(htmlCode);
+            const htmlAttr = escapeHtml(htmlCode); // 不转义HTML代码，保持原始格式
             
             html += `
                 <div class="upload-item">
@@ -235,25 +235,64 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function copyToClipboard(text, button = null) {
-        navigator.clipboard.writeText(text).then(() => {
-            if (button) {
-                const originalText = button.textContent;
-                button.classList.add('copied');
-                button.textContent = '已复制 ✓';
-                setTimeout(() => {
-                    button.classList.remove('copied');
-                    button.textContent = originalText;
-                }, 2000);
+        // 使用现代Clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                handleCopySuccess(button);
+            }).catch(() => {
+                // 如果Clipboard API失败，使用传统方法
+                fallbackCopyToClipboard(text, button);
+            });
+        } else {
+            // 浏览器不支持Clipboard API，使用传统方法
+            fallbackCopyToClipboard(text, button);
+        }
+    }
+
+    function fallbackCopyToClipboard(text, button = null) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                handleCopySuccess(button);
             } else {
-                showToast('链接已复制到剪贴板');
+                handleCopyError(button);
             }
-        }).catch(() => {
-            if (button) {
-                showToast('复制失败，请手动复制');
-            } else {
-                showToast('复制失败，请手动复制');
-            }
-        });
+        } catch (err) {
+            handleCopyError(button);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    function handleCopySuccess(button = null) {
+        if (button) {
+            const originalText = button.textContent;
+            button.classList.add('copied');
+            button.textContent = '已复制 ✓';
+            setTimeout(() => {
+                button.classList.remove('copied');
+                button.textContent = originalText;
+            }, 2000);
+        } else {
+            showToast('链接已复制到剪贴板');
+        }
+    }
+
+    function handleCopyError(button = null) {
+        if (button) {
+            showToast('复制失败，请手动复制');
+        } else {
+            showToast('复制失败，请手动复制');
+        }
     }
 
     function showToast(message) {

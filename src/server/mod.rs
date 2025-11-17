@@ -66,7 +66,7 @@ pub fn print_api_info() {
     info!("  图片信息: GET      /images/<filename>/info");
     info!("  查询列表: GET/POST /api/images/query");
     info!("  统计信息: GET      /api/stats");
-    info!("  删除图片: DEL      /images/<filename>");
+    info!("  删除图片: DEL      /api/images/<filename>");
     info!("  缓存管理: GET      /cache/management");
     info!("  缓存统计: GET      /api/cache/stats");
     info!("  缓存清理: POST     /api/cache/cleanup/auto");
