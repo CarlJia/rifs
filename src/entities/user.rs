@@ -57,8 +57,7 @@ impl Related<super::cache::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 /// 用户角色
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, EnumIter, DeriveActiveEnum)]
-#[sea_orm(rs_type = "String", db_type = "String(Some(10))")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UserRole {
     /// 超级管理员
     #[sea_orm(string_value = "admin")]
@@ -79,7 +78,7 @@ impl From<Model> for crate::models::UserInfo {
         Self {
             id: model.id,
             token: model.token,
-            role: model.role,
+            role: model.role.clone(),
             expires_at: model.expires_at,
             upload_quota: model.upload_quota as u64,
             used_quota: model.used_quota as u64,
@@ -100,6 +99,16 @@ impl From<&crate::models::UserInfo> for ActiveModel {
             used_quota: Set(info.used_quota as i64),
             created_at: Set(info.created_at),
             last_active: Set(info.last_active),
+        }
+    }
+}
+
+// 为sea_orm::Value添加转换支持
+impl From<UserRole> for sea_orm::Value {
+    fn from(role: UserRole) -> Self {
+        match role {
+            UserRole::Admin => sea_orm::Value::String("admin".to_string()),
+            UserRole::User => sea_orm::Value::String("user".to_string()),
         }
     }
 }

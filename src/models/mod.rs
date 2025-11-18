@@ -439,6 +439,24 @@ impl Default for UserRole {
     }
 }
 
+impl std::fmt::Display for UserRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UserRole::Admin => write!(f, "admin"),
+            UserRole::User => write!(f, "user"),
+        }
+    }
+}
+
+impl From<UserRole> for crate::entities::user::UserRole {
+    fn from(role: UserRole) -> Self {
+        match role {
+            UserRole::Admin => crate::entities::user::UserRole::Admin,
+            UserRole::User => crate::entities::user::UserRole::User,
+        }
+    }
+}
+
 /// 创建用户请求
 #[derive(Debug, Deserialize)]
 pub struct CreateUserRequest {

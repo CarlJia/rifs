@@ -1,10 +1,13 @@
 use axum::{
     extract::{FromRequestParts, State},
     http::{request::Parts, HeaderName},
+    response::Response,
+    body::Body,
+    RequestPartsExt,
 };
 use tracing::{debug, warn};
 
-use crate::{app_state::AppState, entities::user, models::CurrentUser, utils::AppError};
+use crate::{app_state::AppState, models::CurrentUser, utils::AppError};
 
 /// 请求认证守卫
 ///
@@ -20,7 +23,7 @@ where
     type Rejection = AppError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        // 尝试从state中获取app_state
+        // 从extensions获取app_state
         let app_state = match state.downcast_ref::<AppState>() {
             Some(app_state) => app_state,
             None => {

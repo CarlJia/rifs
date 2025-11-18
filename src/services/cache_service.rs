@@ -137,6 +137,7 @@ impl CacheService {
         let now = Utc::now();
         let cache_info = CacheInfo {
             cache_key: cache_key.clone(),
+            user_id: Some(user_id),
             original_hash: original_hash.to_string(),
             transform_params: normalized_params_str,
             file_path: file_path.clone(),

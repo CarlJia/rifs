@@ -1,37 +1,37 @@
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     QueryOrder, QuerySelect, Set,
 };
 use tracing::{debug, info, warn};
 
 use crate::{
-    entities::user,
-    models::{CreateUserRequest, UserQuery, UserInfo, UserStats, UserRole},
+    entities::image,
+    entities::user::{UserRole as DbUserRole},
+    models::{CreateUserRequest, UserQuery, UserInfo, UserStats},
     utils::AppError,
 };
 
-// 导入数据库用户角色类型以避免冲突
-use user::UserRole as DbUserRole;
-
 /// 用户服务
 pub struct UserService {
-    db: DatabaseConnection,
+    db: Arc<DatabaseConnection>,
 }
 
 impl UserService {
     /// 创建新的用户服务实例
-    pub fn new(db: DatabaseConnection) -> Result<Self, AppError> {
+    pub fn new(db: Arc<DatabaseConnection>) -> Result<Self, AppError> {
         Ok(Self { db })
     }
 
     /// 根据token获取用户
     pub async fn get_user_by_token(&self, token: &str) -> Result<user::Model, AppError> {
+        debug!("根据token查询用户: {}", token);
+
         let user = user::Entity::find()
             .filter(user::Column::Token.eq(token))
-            .one(&self.db)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("用户不存在: {}", token)))?;
+            .one(&*self.db)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户失败: {}", e)))?;
 
         // 更新最后活跃时间
         self.update_last_active(user.id).await?;
@@ -43,17 +43,20 @@ impl UserService {
     pub async fn get_user_by_id(&self, id: i64) -> Result<user::Model, AppError> {
         user::Entity::find_by_id(id)
             .one(&self.db)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("用户不存在: {}", id)))
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户失败: {}", e)))
     }
 
     /// 创建用户
     pub async fn create_user(&self, request: CreateUserRequest) -> Result<UserInfo, AppError> {
+        debug!("创建用户: {:?}", request);
+
         // 检查token是否已存在
         if let Some(_) = user::Entity::find()
             .filter(user::Column::Token.eq(&request.token))
             .one(&self.db)
-            .await?
+            .await
+            .map_err(|e| AppError::Internal(format!("检查token唯一性失败: {}", e)))?
         {
             return Err(AppError::Conflict("Token已存在".to_string()));
         }
@@ -61,7 +64,7 @@ impl UserService {
         let now = Utc::now();
         let user_model = user::ActiveModel {
             token: Set(request.token),
-            role: Set(request.role.unwrap_or_default()),
+            role: Set(request.role.unwrap_or_default().into()),
             expires_at: Set(request.expires_at),
             upload_quota: Set(request.upload_quota as i64),
             used_quota: Set(0),
@@ -85,7 +88,8 @@ impl UserService {
         let images = image::Entity::find()
             .filter(image::Column::UserId.eq(id))
             .all(&self.db)
-            .await?;
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户图片失败: {}", e)))?;
 
         for image in images {
             // 删除图片文件
@@ -94,7 +98,7 @@ impl UserService {
             }
 
             // 删除数据库记录
-            image::Entity::delete_by_id(image.hash).exec(&self.db).await?;
+            image::Entity::delete_by_id(image.id).exec(&self.db).await?;
         }
 
         // 删除用户的所有缓存
@@ -102,7 +106,8 @@ impl UserService {
         let caches = cache::Entity::find()
             .filter(cache::Column::UserId.eq(id))
             .all(&self.db)
-            .await?;
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户缓存失败: {}", e)))?;
 
         for cache in caches {
             // 删除缓存文件
@@ -127,7 +132,7 @@ impl UserService {
 
         // 应用过滤条件
         if let Some(role) = query.role {
-            select = select.filter(user::Column::Role.eq(role));
+            select = select.filter(user::Column::Role.eq(role.into()));
         }
 
         if let Some(search) = query.search {
@@ -179,64 +184,85 @@ impl UserService {
             select = select.order_by_asc(user::Column::Id);
         }
 
-        // 应用分页
+        // 分页
         let limit = query.limit.unwrap_or(50).min(100);
         let offset = query.offset.unwrap_or(0);
-        select = select.limit(limit).offset(offset);
 
-        let users = select.all(&self.db).await?;
-        let user_infos: Vec<UserInfo> = users.into_iter().map(UserInfo::from).collect();
+        let paginator = select.paginate(&self.db, limit);
+        let total = paginator
+            .num_items()
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户总数失败: {}", e)))?;
+
+        let models = paginator
+            .fetch_page(offset / limit)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户列表失败: {}", e)))?;
+
+        let user_infos: Vec<UserInfo> = models.into_iter().map(UserInfo::from).collect();
+        let _page = offset / limit;
 
         Ok((user_infos, total))
     }
 
     /// 更新用户配额使用量
     pub async fn update_used_quota(&self, id: i64, delta: i64) -> Result<(), AppError> {
-        let user = self.get_user_by_id(id).await?;
-        let new_used_quota = (user.used_quota + delta).max(0);
-
-        user::ActiveModel {
+        let user = user::ActiveModel {
             id: Set(id),
-            used_quota: Set(new_used_quota),
+            used_quota: Set(delta),
             ..Default::default()
-        }
-        .update(&self.db)
-        .await?;
+        };
 
-        debug!("更新用户配额: ID={}, Used={}, Delta={}", id, new_used_quota, delta);
+        user.update(&self.db).await?;
         Ok(())
     }
 
     /// 获取用户统计信息
     pub async fn get_user_stats(&self) -> Result<UserStats, AppError> {
-        let total_count = user::Entity::find().count(&self.db).await?;
-        
+        let connection = &self.db;
+        let db_backend = connection.get_database_backend();
+
+        // 基本统计
+        let basic_stats = connection
+            .query_one(Statement::from_string(
+                db_backend,
+                "SELECT COUNT(*) as total_count, COALESCE(SUM(upload_quota), 0) as total_quota, COALESCE(SUM(used_quota), 0) as total_used_quota FROM users".to_string(),
+            ))
+            .await
+            .map_err(|e| AppError::Internal(format!("查询基本统计失败: {}", e)))?;
+
+        let (total_count, total_quota, total_used_quota) = if let Some(row) = basic_stats {
+            (
+                row.try_get("", "total_count").unwrap_or(0u64) as i64,
+                row.try_get("", "total_quota").unwrap_or(0u64) as i64,
+                row.try_get("", "total_used_quota").unwrap_or(0u64) as i64,
+            )
+        } else {
+            (0i64, 0i64, 0i64)
+        };
+
+        // 按角色统计
         let admin_count = user::Entity::find()
-            .filter(user::Column::Role.eq(UserRole::Admin))
-            .count(&self.db).await?;
-        
+            .filter(user::Column::Role.eq(DbUserRole::Admin))
+            .count(&self.db)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询管理员数量失败: {}", e)))?;
+
         let user_count = user::Entity::find()
-            .filter(user::Column::Role.eq(UserRole::User))
-            .count(&self.db).await?;
+            .filter(user::Column::Role.eq(DbUserRole::User))
+            .count(&self.db)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询用户数量失败: {}", e)))?;
 
         let thirty_days_ago = Utc::now() - chrono::Duration::days(30);
         let active_count = user::Entity::find()
             .filter(user::Column::LastActive.gte(thirty_days_ago))
-            .count(&self.db).await?;
+            .count(&self.db)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询活跃用户数量失败: {}", e)))?;
 
-        let quota_stats = user::Entity::find()
-            .select_only([
-                user::Column::UploadQuota,
-                user::Column::UsedQuota,
-            ])
-            .into_tuple::<(i64, i64)>()
-            .all(&self.db)
-            .await?;
-
-        let total_quota: u64 = quota_stats.iter().map(|(quota, _)| *quota as u64).sum();
-        let used_quota: u64 = quota_stats.iter().map(|(_, used)| *used as u64).sum();
         let quota_usage_rate = if total_quota > 0 {
-            used_quota as f64 / total_quota as f64
+            total_used_quota as f64 / total_quota as f64
         } else {
             0.0
         };
@@ -246,8 +272,8 @@ impl UserService {
             admin_count,
             user_count,
             active_count,
-            total_quota,
-            used_quota,
+            total_quota: total_quota as u64,
+            used_quota: total_used_quota as u64,
             quota_usage_rate,
         })
     }
@@ -261,7 +287,6 @@ impl UserService {
         }
         .update(&self.db)
         .await?;
-
         Ok(())
     }
 
@@ -272,7 +297,7 @@ impl UserService {
 
         let user_model = user::ActiveModel {
             token: Set(token.to_string()),
-            role: Set(UserRole::Admin),
+            role: Set(DbUserRole::Admin),
             expires_at: Set(None),
             upload_quota: Set(admin_quota),
             used_quota: Set(0),

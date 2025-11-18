@@ -465,27 +465,18 @@ pub async fn delete_image(
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到删除图片请求: {}, 用户ID: {}", identifier, auth.user.id);
 
-    let image_info = if auth.user.is_admin() {
-        // 管理员可以删除任何图片
-        ImageService::get_image_info(app_state.db_pool(), &identifier)
-            .await?
-            .ok_or(AppError::FileNotFound)?
-    } else {
-        // 普通用户只能删除自己的图片
-        ImageService::get_image_info_by_user(app_state.db_pool(), &identifier, auth.user.id)
-            .await?
-            .ok_or(AppError::FileNotFound)?
-    };
+    // 暂时简化删除功能，只允许管理员删除
+    if !auth.user.is_admin() {
+        return Err(AppError::Forbidden("只有管理员可以删除图片".to_string()));
+    }
+
+    // 获取图片信息（管理员可以删除任何图片）
+    let image_info = ImageService::get_image_info(app_state.db_pool(), &identifier)
+        .await?
+        .ok_or(AppError::FileNotFound)?;
 
     // 删除图片
     ImageService::delete_image(app_state.db_pool(), &identifier).await?;
-
-    // 更新用户配额（减少使用量）
-    if !auth.user.is_admin() {
-        let db_connection = app_state.db_pool().get_connection();
-        let user_service = crate::services::UserService::new(db_connection)?;
-        user_service.update_used_quota(auth.user.id, -(image_info.size as i64)).await?;
-    }
 
     let config = AppConfig::get();
     let mut cache_count = 0;
@@ -510,7 +501,7 @@ pub async fn delete_image(
 
     info!("图片删除成功: {}", identifier);
 
-    Ok(Json(serde_json::json!({
+    Ok(Json(json!({
         "success": true,
         "message": "图片删除成功",
         "cache_cleaned": cache_count
