@@ -66,122 +66,127 @@ export function CacheManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>缓存统计</CardTitle>
-          <CardDescription>查看当前缓存使用情况</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {loading && !stats ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : stats ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">总缓存大小</p>
-                <p className="text-2xl font-semibold">
-                  {formatBytes(stats.total_size)}
-                </p>
-              </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">缓存文件数</p>
-                <p className="text-2xl font-semibold">{stats.total_count}</p>
-              </div>
-            </div>
-          ) : null}
+         <CardHeader className="p-3 md:p-6">
+           <CardTitle className="text-base md:text-xl">缓存统计</CardTitle>
+           <CardDescription className="text-xs md:text-sm">查看当前缓存使用情况</CardDescription>
+         </CardHeader>
+         <CardContent className="p-3 md:p-6 pt-0 space-y-3 md:space-y-4">
+           {loading && !stats ? (
+             <div className="flex justify-center py-6 md:py-8">
+               <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin text-muted-foreground" />
+             </div>
+           ) : stats ? (
+             <div className="grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4">
+               <div className="p-3 md:p-4 bg-muted rounded-lg">
+                 <p className="text-xs md:text-sm text-muted-foreground">总缓存大小</p>
+                 <p className="text-lg md:text-2xl font-semibold mt-1">
+                   {formatBytes(stats.total_size)}
+                 </p>
+               </div>
+               <div className="p-3 md:p-4 bg-muted rounded-lg">
+                 <p className="text-xs md:text-sm text-muted-foreground">缓存文件数</p>
+                 <p className="text-lg md:text-2xl font-semibold mt-1">{stats.total_count}</p>
+               </div>
+             </div>
+           ) : null}
 
-          <Button
-            onClick={loadStats}
-            disabled={loading}
-            variant="outline"
-            className="w-full"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-          </Button>
-        </CardContent>
-      </Card>
+           <Button
+             onClick={loadStats}
+             disabled={loading}
+             variant="outline"
+             className="w-full text-xs md:text-sm"
+             size="sm"
+           >
+             <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+             刷新
+           </Button>
+         </CardContent>
+       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>清理缓存</CardTitle>
-          <CardDescription>根据条件清理缓存文件</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="max-age">最大文件年龄（秒，留空则不限制）</Label>
-            <Input
-              id="max-age"
-              type="number"
-              value={maxAge}
-              onChange={(e) => setMaxAge(e.target.value)}
-              placeholder="86400"
-              className="mt-2"
-            />
-          </div>
+       <Card>
+         <CardHeader className="p-3 md:p-6">
+           <CardTitle className="text-base md:text-xl">清理缓存</CardTitle>
+           <CardDescription className="text-xs md:text-sm">根据条件清理缓存文件</CardDescription>
+         </CardHeader>
+         <CardContent className="p-3 md:p-6 pt-0 space-y-3 md:space-y-4">
+           <div>
+             <Label htmlFor="max-age" className="text-xs md:text-sm">最大文件年龄（秒，留空则不限制）</Label>
+             <Input
+               id="max-age"
+               type="number"
+               value={maxAge}
+               onChange={(e) => setMaxAge(e.target.value)}
+               placeholder="86400"
+               className="mt-1 md:mt-2 text-xs md:text-sm"
+             />
+           </div>
 
-          <div>
-            <Label htmlFor="max-size">最大缓存大小（字节，留空则不限制）</Label>
-            <Input
-              id="max-size"
-              type="number"
-              value={maxSize}
-              onChange={(e) => setMaxSize(e.target.value)}
-              placeholder="1073741824"
-              className="mt-2"
-            />
-          </div>
+           <div>
+             <Label htmlFor="max-size" className="text-xs md:text-sm">最大缓存大小（字节，留空则不限制）</Label>
+             <Input
+               id="max-size"
+               type="number"
+               value={maxSize}
+               onChange={(e) => setMaxSize(e.target.value)}
+               placeholder="1073741824"
+               className="mt-1 md:mt-2 text-xs md:text-sm"
+             />
+           </div>
 
-          <Button
-            onClick={handleClean}
-            disabled={cleaning}
-            className="w-full bg-destructive hover:bg-destructive/90"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            {cleaning ? '清理中...' : '清理缓存'}
-          </Button>
-        </CardContent>
-      </Card>
+           <Button
+             onClick={handleClean}
+             disabled={cleaning}
+             className="w-full bg-destructive hover:bg-destructive/90 text-xs md:text-sm"
+             size="sm"
+           >
+             <Trash2 className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+             {cleaning ? '清理中...' : '清理缓存'}
+           </Button>
+         </CardContent>
+       </Card>
 
       {stats && stats.items && stats.items.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>缓存详情</CardTitle>
-            <CardDescription>最近缓存的文件</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-2">哈希</th>
-                    <th className="text-left py-2 px-2">格式</th>
-                    <th className="text-right py-2 px-2">大小</th>
-                    <th className="text-left py-2 px-2">最后访问</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.items.slice(0, 10).map((item, idx) => (
-                    <tr key={idx} className="border-b">
-                      <td className="py-2 px-2 font-mono text-xs">
-                        {item.hash.substring(0, 12)}...
-                      </td>
-                      <td className="py-2 px-2">{item.format}</td>
-                      <td className="py-2 px-2 text-right">
-                        {formatBytes(item.file_size)}
-                      </td>
-                      <td className="py-2 px-2 text-muted-foreground text-xs">
-                        {new Date(item.last_accessed).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+       <Card>
+         <CardHeader className="p-3 md:p-6">
+           <CardTitle className="text-base md:text-xl">缓存详情</CardTitle>
+           <CardDescription className="text-xs md:text-sm">最近缓存的文件</CardDescription>
+         </CardHeader>
+         <CardContent className="p-3 md:p-6 pt-0">
+           <div className="overflow-x-auto">
+             <table className="w-full text-xs md:text-sm">
+               <thead>
+                 <tr className="border-b">
+                   <th className="text-left py-2 px-1 md:px-2 font-semibold">哈希</th>
+                   <th className="text-left py-2 px-1 md:px-2 font-semibold">格式</th>
+                   <th className="text-right py-2 px-1 md:px-2 font-semibold hidden sm:table-cell">大小</th>
+                   <th className="text-left py-2 px-1 md:px-2 font-semibold hidden md:table-cell">最后访问</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {stats.items.slice(0, 10).map((item, idx) => (
+                   <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
+                     <td className="py-2 px-1 md:px-2 font-mono text-xs break-all">
+                       {item.hash.substring(0, 8)}...
+                     </td>
+                     <td className="py-2 px-1 md:px-2">{item.format}</td>
+                     <td className="py-2 px-1 md:px-2 text-right hidden sm:table-cell">
+                       {formatBytes(item.file_size)}
+                     </td>
+                     <td className="py-2 px-1 md:px-2 text-muted-foreground text-xs hidden md:table-cell whitespace-nowrap">
+                       {new Date(item.last_accessed).toLocaleString()}
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+             <p className="text-xs text-muted-foreground mt-2 md:hidden">
+               显示最近 10 项，在平板或桌面设备上查看完整详情
+             </p>
+           </div>
+         </CardContent>
+       </Card>
       )}
     </div>
   )

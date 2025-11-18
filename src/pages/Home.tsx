@@ -132,93 +132,102 @@ export function Home() {
       </Card>
 
       {results.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">上传结果</h3>
+        <div className="space-y-3 md:space-y-4">
+          <h3 className="text-base md:text-lg font-semibold">上传结果</h3>
           {results.map((result, index) => (
             <Card key={index}>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
+              <CardContent className="pt-4 md:pt-6">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <p className="font-semibold">{result.filename}</p>
-                    <p className="text-sm text-muted-foreground font-mono">
+                    <p className="font-semibold text-sm md:text-base truncate">{result.filename}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground font-mono break-all">
                       {result.hash}
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 gap-2 md:gap-3">
                     <div>
-                      <label className="text-sm font-medium">URL</label>
-                      <div className="flex gap-2 mt-2">
+                      <label className="text-xs md:text-sm font-medium">URL</label>
+                      <div className="flex flex-col sm:flex-row gap-2 mt-1 md:mt-2">
                         <Input
                           readOnly
                           value={result.url}
-                          className="bg-muted"
+                          className="bg-muted text-xs md:text-sm min-w-0"
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyToClipboard(result.url, index)}
-                        >
-                          {copiedIndex === index ? (
-                            <>
-                              <Check className="w-4 h-4 mr-1" />
-                              复制成功
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4 mr-1" />
-                              复制
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          asChild
-                        >
-                          <a
-                            href={result.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(result.url, index)}
+                            className="text-xs md:text-sm px-2 md:px-3"
+                            title="复制 URL"
                           >
-                            <Eye className="w-4 h-4" />
-                          </a>
-                        </Button>
+                            {copiedIndex === index ? (
+                              <Check className="w-3 h-3 md:w-4 md:h-4" />
+                            ) : (
+                              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+                            )}
+                            <span className="hidden sm:inline ml-1">
+                              {copiedIndex === index ? '成功' : '复制'}
+                            </span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                            className="text-xs md:text-sm px-2 md:px-3"
+                            title="查看原图"
+                          >
+                            <a
+                              href={result.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                            </a>
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">Markdown</label>
-                      <div className="flex gap-2 mt-2">
+                      <label className="text-xs md:text-sm font-medium">Markdown</label>
+                      <div className="flex flex-col sm:flex-row gap-2 mt-1 md:mt-2">
                         <Input
                           readOnly
                           value={result.markdown}
-                          className="bg-muted"
+                          className="bg-muted text-xs md:text-sm min-w-0"
                         />
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => copyToClipboard(result.markdown, index)}
+                          className="text-xs md:text-sm px-2 md:px-3"
+                          title="复制 Markdown"
                         >
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline ml-1">复制</span>
                         </Button>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">HTML</label>
-                      <div className="flex gap-2 mt-2">
+                      <label className="text-xs md:text-sm font-medium">HTML</label>
+                      <div className="flex flex-col sm:flex-row gap-2 mt-1 md:mt-2">
                         <Input
                           readOnly
                           value={result.html}
-                          className="bg-muted"
+                          className="bg-muted text-xs md:text-sm min-w-0"
                         />
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => copyToClipboard(result.html, index)}
+                          className="text-xs md:text-sm px-2 md:px-3"
+                          title="复制 HTML"
                         >
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3 h-3 md:w-4 md:h-4" />
+                          <span className="hidden sm:inline ml-1">复制</span>
                         </Button>
                       </div>
                     </div>
@@ -231,65 +240,65 @@ export function Home() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>API 端点</CardTitle>
-          <CardDescription>快速参考</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <span className="inline-block bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
-              POST
-            </span>
-            <span className="font-mono">/upload</span>
-            <p className="text-sm text-muted-foreground mt-1">上传图片文件</p>
-          </div>
+         <CardHeader>
+           <CardTitle className="text-base md:text-xl">API 端点</CardTitle>
+           <CardDescription className="text-xs md:text-sm">快速参考</CardDescription>
+         </CardHeader>
+         <CardContent className="space-y-3 md:space-y-4">
+           <div>
+             <span className="inline-block bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
+               POST
+             </span>
+             <span className="font-mono text-xs md:text-sm break-all">/upload</span>
+             <p className="text-xs md:text-sm text-muted-foreground mt-1">上传图片文件</p>
+           </div>
 
-          <div>
-            <span className="inline-block bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
-              GET
-            </span>
-            <span className="font-mono">/images/{'{id}'}</span>
-            <p className="text-sm text-muted-foreground mt-1">获取原图或转换图片</p>
-          </div>
+           <div>
+             <span className="inline-block bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
+               GET
+             </span>
+             <span className="font-mono text-xs md:text-sm break-all">/images/{'{id}'}</span>
+             <p className="text-xs md:text-sm text-muted-foreground mt-1">获取原图或转换图片</p>
+           </div>
 
-          <div>
-            <span className="inline-block bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
-              GET
-            </span>
-            <span className="font-mono">/images/{'{id}'}@w800_h600_jpeg_q90</span>
-            <p className="text-sm text-muted-foreground mt-1">
-              实时转换：宽800px、高600px、JPEG格式、质量90%
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+           <div>
+             <span className="inline-block bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded mr-2">
+               GET
+             </span>
+             <span className="font-mono text-xs md:text-sm break-all">/images/{'{id}'}@w800_h600_jpeg_q90</span>
+             <p className="text-xs md:text-sm text-muted-foreground mt-1">
+               实时转换：宽800px、高600px、JPEG格式、质量90%
+             </p>
+           </div>
+         </CardContent>
+       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>转换参数</CardTitle>
-          <CardDescription>在图片URL后添加参数进行实时转换</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 bg-muted rounded">
-              <code className="font-mono text-sm">w{'{数字}'}</code>
-              <p className="text-xs text-muted-foreground mt-1">最大宽度</p>
-            </div>
-            <div className="p-3 bg-muted rounded">
-              <code className="font-mono text-sm">h{'{数字}'}</code>
-              <p className="text-xs text-muted-foreground mt-1">最大高度</p>
-            </div>
-            <div className="p-3 bg-muted rounded">
-              <code className="font-mono text-sm">jpeg/png/webp/avif</code>
-              <p className="text-xs text-muted-foreground mt-1">目标格式</p>
-            </div>
-            <div className="p-3 bg-muted rounded">
-              <code className="font-mono text-sm">q{'{1-100}'}</code>
-              <p className="text-xs text-muted-foreground mt-1">质量参数</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+       <Card>
+         <CardHeader>
+           <CardTitle className="text-base md:text-xl">转换参数</CardTitle>
+           <CardDescription className="text-xs md:text-sm">在图片URL后添加参数进行实时转换</CardDescription>
+         </CardHeader>
+         <CardContent>
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+             <div className="p-2 md:p-3 bg-muted rounded">
+               <code className="font-mono text-xs md:text-sm break-all">w{'{数字}'}</code>
+               <p className="text-xs text-muted-foreground mt-1">最大宽度</p>
+             </div>
+             <div className="p-2 md:p-3 bg-muted rounded">
+               <code className="font-mono text-xs md:text-sm break-all">h{'{数字}'}</code>
+               <p className="text-xs text-muted-foreground mt-1">最大高度</p>
+             </div>
+             <div className="p-2 md:p-3 bg-muted rounded">
+               <code className="font-mono text-xs md:text-sm break-all">jpeg/png/webp/avif</code>
+               <p className="text-xs text-muted-foreground mt-1">目标格式</p>
+             </div>
+             <div className="p-2 md:p-3 bg-muted rounded">
+               <code className="font-mono text-xs md:text-sm break-all">q{'{1-100}'}</code>
+               <p className="text-xs text-muted-foreground mt-1">质量参数</p>
+             </div>
+           </div>
+         </CardContent>
+       </Card>
     </div>
   )
 }
