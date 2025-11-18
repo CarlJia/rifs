@@ -21,9 +21,9 @@ pub async fn create_user(
     Json(request): Json<CreateUserRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let db_connection = app_state.db_pool().get_connection();
-    let user_service = crate::services::UserService::new(db_connection)?;
+        let user_service = crate::services::UserService::new(db_connection.clone()).map_err(|e| AppError::Internal(format!("创建用户服务失败: {}", e)))?;
 
-    match user_service.create_user(request).await {
+        match user_service.create_user(request).await {
         Ok(user) => {
             info!("管理员 {} 创建用户: {}", admin.user.id, user.token);
             Ok(Json(serde_json::json!({
@@ -51,9 +51,9 @@ pub async fn delete_user(
     }
 
     let db_connection = app_state.db_pool().get_connection();
-    let user_service = crate::services::UserService::new(db_connection)?;
+        let user_service = crate::services::UserService::new(db_connection.clone()).map_err(|e| AppError::Internal(format!("创建用户服务失败: {}", e)))?;
 
-    match user_service.delete_user(id).await {
+        match user_service.delete_user(id).await {
         Ok(_) => {
             info!("管理员 {} 删除用户: {}", admin.user.id, id);
             Ok(Json(serde_json::json!({

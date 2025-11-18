@@ -64,7 +64,7 @@ pub async fn upload_image(
 
             // 更新用户配额使用量
             let db_connection = app_state.db_pool().get_connection();
-            let user_service = crate::services::UserService::new(db_connection)?;
+            let user_service = crate::services::UserService::new(db_connection.clone()).map_err(|e| AppError::Internal(format!("创建用户服务失败: {}", e)))?;
             user_service.update_used_quota(auth.user.id, data.len() as i64).await?;
 
             let response = UploadResponse {
