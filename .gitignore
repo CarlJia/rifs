@@ -6,3 +6,21 @@ Cargo.lock
 config.toml
 test_db_*.sqlite
 :memory:
+
+# Node.js
+node_modules/
+/dist
+/src-tauri/target
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tauri
+/src-tauri/target
