@@ -10,6 +10,9 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub hash: String,
 
+    /// 用户ID（外键）
+    pub user_id: i64,
+
     /// 文件大小（字节）
     pub size: i64,
 
@@ -34,7 +37,14 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UserId",
+        to = "super::user::Column::Id"
+    )]
+    User,
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
@@ -42,6 +52,7 @@ impl From<Model> for crate::models::ImageInfo {
     fn from(model: Model) -> Self {
         Self {
             hash: model.hash,
+            user_id: Some(model.user_id),
             size: model.size as u64,
             mime_type: model.mime_type,
             created_at: model.created_at,
@@ -57,6 +68,7 @@ impl From<&crate::models::ImageInfo> for ActiveModel {
     fn from(info: &crate::models::ImageInfo) -> Self {
         Self {
             hash: Set(info.hash.clone()),
+            user_id: Set(info.user_id.unwrap_or(0)),
             size: Set(info.size as i64),
             mime_type: Set(info.mime_type.clone()),
             created_at: Set(info.created_at),

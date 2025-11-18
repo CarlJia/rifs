@@ -2,7 +2,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::Method,
     middleware,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
@@ -10,10 +10,11 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::app_state::AppState;
 use crate::config::AppConfig;
 use crate::handlers::{
-    api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
-    delete_image, gallery_page, get_auth_config, get_cache_stats, get_image, get_image_info,
-    get_stats, get_system_stats, health_check_detailed, login_page, query_images_get,
-    query_images_post, serve_static, upload_image, verify_token,
+    api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, create_user,
+    decay_heat_scores, delete_image, delete_user, gallery_page, get_auth_config, get_cache_stats,
+    get_current_user, get_image, get_image_info, get_stats, get_system_stats, get_user_stats,
+    health_check_detailed, list_users, login_page, query_images_get, query_images_post, serve_static,
+    update_user_quota, upload_image, verify_token,
 };
 use crate::middleware::{log_requests, request_timeout};
 
@@ -57,6 +58,13 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         .route("/api/cache/decay", post(decay_heat_scores))
         .route("/api/cache/clear", delete(clear_all_cache))
         .route("/cache/management", get(cache_management_dashboard))
+        // 用户管理接口
+        .route("/api/users", post(create_user))
+        .route("/api/users", get(list_users))
+        .route("/api/users/stats", get(get_user_stats))
+        .route("/api/users/current", get(get_current_user))
+        .route("/api/users/:id", delete(delete_user))
+        .route("/api/users/:id/quota", put(update_user_quota))
         // 注入应用状态
         .with_state(app_state.clone())
         // 添加文件大小限制中间件

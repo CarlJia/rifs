@@ -28,6 +28,16 @@ impl ImageService {
         data: &[u8],
         original_filename: Option<String>,
     ) -> Result<ImageInfo, AppError> {
+        Self::save_image_with_user(pool, data, 1, original_filename).await // 默认用户ID为1（管理员）
+    }
+
+    /// 保存上传的图片文件（指定用户）
+    pub async fn save_image_with_user(
+        pool: &DatabasePool,
+        data: &[u8],
+        user_id: i64,
+        original_filename: Option<String>,
+    ) -> Result<ImageInfo, AppError> {
         // 验证文件是否为空
         if data.is_empty() {
             return Err(AppError::InvalidFile);
@@ -42,10 +52,10 @@ impl ImageService {
         // 计算文件哈希值用于去重
         let file_hash = Self::calculate_file_hash(data);
 
-        // 检查是否已存在相同文件
+        // 检查是否已存在相同文件（同一用户）
         let connection = pool.get_connection();
         let image_repo = ImageRepository::new(connection.clone());
-        if let Some(existing_image) = image_repo.find_by_hash(&file_hash).await? {
+        if let Some(existing_image) = image_repo.find_by_hash_and_user(&file_hash, user_id).await? {
             return Ok(existing_image);
         }
 
@@ -58,6 +68,7 @@ impl ImageService {
         // 创建图片信息
         let image_info = ImageInfo {
             hash: file_hash.clone(),
+            user_id: Some(user_id),
             size: data.len() as u64,
             mime_type,
             created_at: Utc::now(),
@@ -172,10 +183,50 @@ impl ImageService {
         Ok((page_result.items, page_result.total))
     }
 
+    /// 根据用户ID查询图片列表
+    pub async fn query_images_by_user(
+        pool: &DatabasePool,
+        user_id: i64,
+        query: &ImageQuery,
+    ) -> Result<(Vec<ImageInfo>, u64), AppError> {
+        let connection = pool.get_connection();
+        let image_repo = ImageRepository::new(connection);
+        let page_result = image_repo.find_by_user(user_id, query).await?;
+        Ok((page_result.items, page_result.total))
+    }
+
     /// 获取统计信息
     pub async fn get_stats(pool: &DatabasePool) -> Result<ImageStats, AppError> {
         let connection = pool.get_connection();
         let image_repo = ImageRepository::new(connection);
         image_repo.get_stats().await
+    }
+
+    /// 根据用户ID获取统计信息
+    pub async fn get_stats_by_user(pool: &DatabasePool, user_id: i64) -> Result<ImageStats, AppError> {
+        let connection = pool.get_connection();
+        let image_repo = ImageRepository::new(connection);
+        image_repo.get_stats_by_user(user_id).await
+    }
+
+    /// 根据哈希值获取图片信息
+    pub async fn get_image_info(
+        pool: &DatabasePool,
+        hash: &str,
+    ) -> Result<Option<ImageInfo>, AppError> {
+        let connection = pool.get_connection();
+        let image_repo = ImageRepository::new(connection);
+        image_repo.find_by_hash(hash).await
+    }
+
+    /// 根据哈希值和用户ID获取图片信息
+    pub async fn get_image_info_by_user(
+        pool: &DatabasePool,
+        hash: &str,
+        user_id: i64,
+    ) -> Result<Option<ImageInfo>, AppError> {
+        let connection = pool.get_connection();
+        let image_repo = ImageRepository::new(connection);
+        image_repo.find_by_hash_and_user(hash, user_id).await
     }
 }

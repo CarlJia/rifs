@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct ImageInfo {
     /// 文件哈希值（主键）
     pub hash: String,
+    /// 用户ID（外键）
+    pub user_id: Option<i64>,
     /// 文件大小（字节）
     pub size: u64,
     /// MIME 类型
@@ -332,6 +334,8 @@ impl ImageTransformParams {
 pub struct CacheInfo {
     /// 缓存键（主键）
     pub cache_key: String,
+    /// 用户ID（外键）
+    pub user_id: Option<i64>,
     /// 原图hash
     pub original_hash: String,
     /// 转换参数字符串
@@ -397,4 +401,129 @@ pub struct Base64ImageResponse {
     pub size: usize,
     /// 原图信息
     pub original: ImageInfo,
+}
+
+/// 用户信息结构体
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserInfo {
+    /// 用户ID
+    pub id: i64,
+    /// 用户Token
+    pub token: String,
+    /// 用户角色
+    pub role: UserRole,
+    /// Token过期时间
+    pub expires_at: Option<DateTime<Utc>>,
+    /// 上传文件总大小限制（字节）
+    pub upload_quota: u64,
+    /// 已使用上传大小（字节）
+    pub used_quota: u64,
+    /// 创建时间
+    pub created_at: DateTime<Utc>,
+    /// 最后活跃时间
+    pub last_active: Option<DateTime<Utc>>,
+}
+
+/// 用户角色
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserRole {
+    /// 超级管理员
+    Admin,
+    /// 普通用户
+    User,
+}
+
+impl Default for UserRole {
+    fn default() -> Self {
+        Self::User
+    }
+}
+
+/// 创建用户请求
+#[derive(Debug, Deserialize)]
+pub struct CreateUserRequest {
+    /// 用户Token
+    pub token: String,
+    /// 用户角色
+    pub role: Option<UserRole>,
+    /// Token过期时间（可选）
+    pub expires_at: Option<DateTime<Utc>>,
+    /// 上传文件总大小限制（字节）
+    pub upload_quota: u64,
+}
+
+/// 用户查询参数
+#[derive(Debug, Deserialize)]
+pub struct UserQuery {
+    /// 分页大小
+    pub limit: Option<u64>,
+    /// 偏移量
+    pub offset: Option<u64>,
+    /// 按字段排序
+    pub order_by: Option<String>,
+    /// 排序方向（asc/desc）
+    pub order_dir: Option<String>,
+    /// 按角色过滤
+    pub role: Option<UserRole>,
+    /// 搜索关键词（token）
+    pub search: Option<String>,
+}
+
+/// 用户统计信息
+#[derive(Debug, Serialize)]
+pub struct UserStats {
+    /// 总用户数量
+    pub total_count: i64,
+    /// 管理员数量
+    pub admin_count: i64,
+    /// 普通用户数量
+    pub user_count: i64,
+    /// 活跃用户数量（30天内）
+    pub active_count: i64,
+    /// 总配额
+    pub total_quota: u64,
+    /// 已使用配额
+    pub used_quota: u64,
+    /// 配额使用率
+    pub quota_usage_rate: f64,
+}
+
+/// 当前认证用户信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CurrentUser {
+    /// 用户ID
+    pub id: i64,
+    /// 用户Token
+    pub token: String,
+    /// 用户角色
+    pub role: UserRole,
+    /// Token过期时间
+    pub expires_at: Option<DateTime<Utc>>,
+    /// 上传配额
+    pub upload_quota: u64,
+    /// 已使用配额
+    pub used_quota: u64,
+    /// 剩余配额
+    pub remaining_quota: u64,
+}
+
+impl CurrentUser {
+    /// 检查是否为管理员
+    pub fn is_admin(&self) -> bool {
+        matches!(self.role, UserRole::Admin)
+    }
+
+    /// 检查token是否已过期
+    pub fn is_expired(&self) -> bool {
+        if let Some(expires_at) = self.expires_at {
+            expires_at < Utc::now()
+        } else {
+            false
+        }
+    }
+
+    /// 检查是否有足够的上传配额
+    pub fn has_quota(&self, required_size: u64) -> bool {
+        self.is_admin() || self.remaining_quota >= required_size
+    }
 }

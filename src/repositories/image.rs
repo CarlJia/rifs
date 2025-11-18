@@ -21,8 +21,14 @@ pub trait ImageRepositoryTrait: Repository {
     /// 根据hash获取图片信息
     async fn find_by_hash(&self, hash: &str) -> Result<Option<ImageInfo>, AppError>;
 
+    /// 根据hash和用户ID获取图片信息
+    async fn find_by_hash_and_user(&self, hash: &str, user_id: i64) -> Result<Option<ImageInfo>, AppError>;
+
     /// 分页查询图片列表
     async fn find_by_query(&self, query: &ImageQuery) -> Result<PageResult<ImageInfo>, AppError>;
+
+    /// 根据用户ID分页查询图片列表
+    async fn find_by_user(&self, user_id: i64, query: &ImageQuery) -> Result<PageResult<ImageInfo>, AppError>;
 
     /// 更新图片访问信息
     async fn update_access(&self, hash: &str) -> Result<bool, AppError>;
@@ -30,8 +36,14 @@ pub trait ImageRepositoryTrait: Repository {
     /// 删除图片记录
     async fn delete_by_hash(&self, hash: &str) -> Result<bool, AppError>;
 
+    /// 根据用户ID删除图片记录
+    async fn delete_by_user(&self, user_id: i64) -> Result<u64, AppError>;
+
     /// 获取统计信息
     async fn get_stats(&self) -> Result<ImageStats, AppError>;
+
+    /// 根据用户ID获取统计信息
+    async fn get_stats_by_user(&self, user_id: i64) -> Result<ImageStats, AppError>;
 }
 
 /// 图片仓储实现
@@ -306,6 +318,149 @@ impl ImageRepositoryTrait for ImageRepository {
             .query_all(Statement::from_string(
                 db_backend,
                 "SELECT DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30".to_string()
+            ))
+            .await
+            .map_err(|e| AppError::Internal(format!("查询时间统计失败: {}", e)))?;
+
+        let mut by_time = Vec::new();
+        for row in time_stats {
+            by_time.push(TimeStat {
+                date: row.try_get("", "date").unwrap_or_default(),
+                count: row.try_get("", "count").unwrap_or(0),
+                total_size: row.try_get("", "total_size").unwrap_or(0),
+            });
+        }
+
+        Ok(ImageStats {
+            total_count,
+            total_size,
+            average_size,
+            by_type,
+            by_time,
+        })
+    }
+
+    async fn find_by_hash_and_user(&self, hash: &str, user_id: i64) -> Result<Option<ImageInfo>, AppError> {
+        debug!("根据hash和用户ID查询图片: hash={}, user_id={}", hash, user_id);
+
+        let connection = self.get_connection();
+        let result = Image::find()
+            .filter(image::Column::Hash.eq(hash))
+            .filter(image::Column::UserId.eq(user_id))
+            .one(&*connection)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询图片失败: {}", e)))?;
+
+        Ok(result.map(|model| model.into()))
+    }
+
+    async fn find_by_user(&self, user_id: i64, query: &ImageQuery) -> Result<PageResult<ImageInfo>, AppError> {
+        debug!("根据用户ID分页查询图片列表: user_id={:?}", user_id);
+
+        let connection = self.get_connection();
+        let mut select = Image::find();
+        
+        // 添加用户ID过滤条件
+        select = select.filter(image::Column::UserId.eq(user_id));
+        
+        let condition = self.build_query_condition(query);
+        select = select.filter(condition.clone());
+        select = self.apply_ordering(select, query);
+
+        // 分页
+        let limit = query.limit.unwrap_or(20);
+        let offset = query.offset.unwrap_or(0);
+
+        let paginator = select.paginate(&*connection, limit);
+        let total = paginator
+            .num_items()
+            .await
+            .map_err(|e| AppError::Internal(format!("查询图片总数失败: {}", e)))?;
+
+        let models = paginator
+            .fetch_page(offset / limit)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询图片列表失败: {}", e)))?;
+
+        let images: Vec<ImageInfo> = models.into_iter().map(|model| model.into()).collect();
+        let _page = offset / limit;
+
+        Ok(PageResult {
+            items: images,
+            total,
+        })
+    }
+
+    async fn delete_by_user(&self, user_id: i64) -> Result<u64, AppError> {
+        debug!("根据用户ID删除图片: user_id={}", user_id);
+
+        let connection = self.get_connection();
+        let result = Image::delete_many()
+            .filter(image::Column::UserId.eq(user_id))
+            .exec(&*connection)
+            .await
+            .map_err(|e| AppError::Internal(format!("删除用户图片失败: {}", e)))?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn get_stats_by_user(&self, user_id: i64) -> Result<ImageStats, AppError> {
+        debug!("根据用户ID获取统计信息: user_id={}", user_id);
+
+        let connection = self.get_connection();
+        let db_backend = connection.get_database_backend();
+
+        // 基本统计
+        let basic_stats = connection
+            .query_one(Statement::from_string(
+                db_backend,
+                format!(
+                    "SELECT COUNT(*) as total_count, COALESCE(SUM(size), 0) as total_size, COALESCE(AVG(size), 0) as average_size FROM images WHERE user_id = {}",
+                    user_id
+                )
+            ))
+            .await
+            .map_err(|e| AppError::Internal(format!("查询基本统计失败: {}", e)))?;
+
+        let (total_count, total_size, average_size) = if let Some(row) = basic_stats {
+            (
+                row.try_get("", "total_count").unwrap_or(0i64),
+                row.try_get("", "total_size").unwrap_or(0i64),
+                row.try_get("", "average_size").unwrap_or(0.0f64),
+            )
+        } else {
+            (0i64, 0i64, 0.0f64)
+        };
+
+        // 按类型统计
+        let type_stats = connection
+            .query_all(Statement::from_string(
+                db_backend,
+                format!(
+                    "SELECT mime_type, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images WHERE user_id = {} GROUP BY mime_type",
+                    user_id
+                )
+            ))
+            .await
+            .map_err(|e| AppError::Internal(format!("查询类型统计失败: {}", e)))?;
+
+        let mut by_type = Vec::new();
+        for row in type_stats {
+            by_type.push(TypeStat {
+                mime_type: row.try_get("", "mime_type").unwrap_or_default(),
+                count: row.try_get("", "count").unwrap_or(0),
+                total_size: row.try_get("", "total_size").unwrap_or(0),
+            });
+        }
+
+        // 按时间统计（按天）
+        let time_stats = connection
+            .query_all(Statement::from_string(
+                db_backend,
+                format!(
+                    "SELECT DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images WHERE user_id = {} GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30",
+                    user_id
+                )
             ))
             .await
             .map_err(|e| AppError::Internal(format!("查询时间统计失败: {}", e)))?;

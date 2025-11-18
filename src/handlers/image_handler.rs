@@ -16,11 +16,11 @@ use crate::utils::AppError;
 
 /// 图片上传接口
 pub async fn upload_image(
-    _: AuthGuard,
+    auth: AuthGuard,
     State(app_state): State<AppState>,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
-    info!("收到图片上传请求");
+    info!("收到图片上传请求，用户ID: {}", auth.user.id);
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         error!("解析multipart数据失败: {}", e);
@@ -43,17 +43,29 @@ pub async fn upload_image(
                 return Err(AppError::InvalidFile);
             }
 
+            // 检查用户配额
+            if !auth.user.has_quota(data.len() as u64) {
+                return Err(AppError::QuotaExceeded(
+                    "上传配额不足".to_string(),
+                ));
+            }
+
             if let Some(ref filename) = original_filename {
-                info!("开始保存图片: {}字节, 原始文件名: {}", data.len(), filename);
+                info!("开始保存图片: {}字节, 原始文件名: {}, 用户ID: {}", data.len(), filename, auth.user.id);
             } else {
-                info!("开始保存图片: {}字节", data.len());
+                info!("开始保存图片: {}字节, 用户ID: {}", data.len(), auth.user.id);
             }
 
             // 保存图片（后端会自动检测真实文件类型）
             let image_info =
-                ImageService::save_image(app_state.db_pool(), &data, original_filename).await?;
+                ImageService::save_image_with_user(app_state.db_pool(), &data, auth.user.id, original_filename).await?;
 
-            info!("图片保存成功: {}", image_info.stored_name());
+            info!("图片保存成功: {}, 用户ID: {}", image_info.stored_name(), auth.user.id);
+
+            // 更新用户配额使用量
+            let db_connection = app_state.db_pool().get_connection();
+            let user_service = crate::services::UserService::new(db_connection)?;
+            user_service.update_used_quota(auth.user.id, data.len() as i64).await?;
 
             let response = UploadResponse {
                 success: true,
@@ -341,12 +353,21 @@ pub async fn get_image(
 
 /// 获取图片信息接口（通过哈希值）
 pub async fn get_image_info(
+    auth: AuthGuard,
     State(app_state): State<AppState>,
     Path(identifier): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let image_info = ImageService::get_image_info(app_state.db_pool(), &identifier)
-        .await?
-        .ok_or(AppError::FileNotFound)?;
+    let image_info = if auth.user.is_admin() {
+        // 管理员可以查看所有图片
+        ImageService::get_image_info(app_state.db_pool(), &identifier)
+            .await?
+            .ok_or(AppError::FileNotFound)?
+    } else {
+        // 普通用户只能查看自己的图片
+        ImageService::get_image_info_by_user(app_state.db_pool(), &identifier, auth.user.id)
+            .await?
+            .ok_or(AppError::FileNotFound)?
+    };
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -357,12 +378,19 @@ pub async fn get_image_info(
 
 /// 查询图片列表 (POST - JSON请求体)
 pub async fn query_images_post(
+    auth: AuthGuard,
     State(app_state): State<AppState>,
     Json(query): Json<ImageQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    info!("收到查询图片列表请求 (POST): {:?}", query);
+    info!("收到查询图片列表请求 (POST): {:?}, 用户ID: {}", query, auth.user.id);
 
-    let (images, total) = ImageService::query_images(app_state.db_pool(), &query).await?;
+    let (images, total) = if auth.user.is_admin() {
+        // 管理员可以查看所有图片
+        ImageService::query_images(app_state.db_pool(), &query).await?
+    } else {
+        // 普通用户只能查看自己的图片
+        ImageService::query_images_by_user(app_state.db_pool(), auth.user.id, &query).await?
+    };
 
     info!("返回图片列表: {} 条记录，总计 {} 条", images.len(), total);
 
@@ -380,12 +408,19 @@ pub async fn query_images_post(
 
 /// 查询图片列表 (GET - URL查询参数)
 pub async fn query_images_get(
+    auth: AuthGuard,
     State(app_state): State<AppState>,
     Query(query): Query<ImageQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    info!("收到查询图片列表请求 (GET): {:?}", query);
+    info!("收到查询图片列表请求 (GET): {:?}, 用户ID: {}", query, auth.user.id);
 
-    let (images, total) = ImageService::query_images(app_state.db_pool(), &query).await?;
+    let (images, total) = if auth.user.is_admin() {
+        // 管理员可以查看所有图片
+        ImageService::query_images(app_state.db_pool(), &query).await?
+    } else {
+        // 普通用户只能查看自己的图片
+        ImageService::query_images_by_user(app_state.db_pool(), auth.user.id, &query).await?
+    };
 
     info!("返回图片列表: {} 条记录，总计 {} 条", images.len(), total);
 
@@ -402,10 +437,16 @@ pub async fn query_images_get(
 }
 
 /// 获取统计信息
-pub async fn get_stats(State(app_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
-    info!("收到获取统计信息请求");
+pub async fn get_stats(auth: AuthGuard, State(app_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
+    info!("收到获取统计信息请求，用户ID: {}", auth.user.id);
 
-    let stats = ImageService::get_stats(app_state.db_pool()).await?;
+    let stats = if auth.user.is_admin() {
+        // 管理员可以查看所有统计
+        ImageService::get_stats(app_state.db_pool()).await?
+    } else {
+        // 普通用户只能查看自己的统计
+        ImageService::get_stats_by_user(app_state.db_pool(), auth.user.id).await?
+    };
 
     info!("返回统计信息");
 
@@ -418,12 +459,33 @@ pub async fn get_stats(State(app_state): State<AppState>) -> Result<impl IntoRes
 
 /// 删除图片接口（通过哈希值）
 pub async fn delete_image(
+    auth: AuthGuard,
     State(app_state): State<AppState>,
     Path(identifier): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    info!("收到删除图片请求: {}", identifier);
+    info!("收到删除图片请求: {}, 用户ID: {}", identifier, auth.user.id);
 
+    let image_info = if auth.user.is_admin() {
+        // 管理员可以删除任何图片
+        ImageService::get_image_info(app_state.db_pool(), &identifier)
+            .await?
+            .ok_or(AppError::FileNotFound)?
+    } else {
+        // 普通用户只能删除自己的图片
+        ImageService::get_image_info_by_user(app_state.db_pool(), &identifier, auth.user.id)
+            .await?
+            .ok_or(AppError::FileNotFound)?
+    };
+
+    // 删除图片
     ImageService::delete_image(app_state.db_pool(), &identifier).await?;
+
+    // 更新用户配额（减少使用量）
+    if !auth.user.is_admin() {
+        let db_connection = app_state.db_pool().get_connection();
+        let user_service = crate::services::UserService::new(db_connection)?;
+        user_service.update_used_quota(auth.user.id, -(image_info.size as i64)).await?;
+    }
 
     let config = AppConfig::get();
     let mut cache_count = 0;

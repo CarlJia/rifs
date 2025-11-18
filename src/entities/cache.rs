@@ -11,6 +11,9 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub cache_key: String,
 
+    /// 用户ID（外键）
+    pub user_id: i64,
+
     /// 原图hash
     pub original_hash: String,
 
@@ -42,7 +45,14 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UserId",
+        to = "super::user::Column::Id"
+    )]
+    User,
+}
 
 impl ActiveModelBehavior for ActiveModel {}
 
@@ -50,6 +60,7 @@ impl From<Model> for crate::models::CacheInfo {
     fn from(model: Model) -> Self {
         Self {
             cache_key: model.cache_key,
+            user_id: Some(model.user_id),
             original_hash: model.original_hash,
             transform_params: model.transform_params,
             file_path: model.file_path,
@@ -67,6 +78,7 @@ impl From<&crate::models::CacheInfo> for ActiveModel {
     fn from(info: &crate::models::CacheInfo) -> Self {
         Self {
             cache_key: Set(info.cache_key.clone()),
+            user_id: Set(info.user_id.unwrap_or(0)),
             original_hash: Set(info.original_hash.clone()),
             transform_params: Set(info.transform_params.clone()),
             file_path: Set(info.file_path.clone()),

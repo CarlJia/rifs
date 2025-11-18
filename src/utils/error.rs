@@ -9,6 +9,9 @@ pub enum AppError {
     #[error("文件IO错误: {0}")]
     FileIo(#[from] std::io::Error),
 
+    #[error("数据库错误: {0}")]
+    Database(#[from] sea_orm::DbErr),
+
     #[error("不支持的文件类型")]
     UnsupportedFileType,
 
@@ -23,6 +26,18 @@ pub enum AppError {
 
     #[error("未经授权: {0}")]
     Unauthorized(String),
+
+    #[error("权限不足: {0}")]
+    Forbidden(String),
+
+    #[error("资源冲突: {0}")]
+    Conflict(String),
+
+    #[error("资源未找到: {0}")]
+    NotFound(String),
+
+    #[error("配额超限: {0}")]
+    QuotaExceeded(String),
 
     #[error("服务器内部错误: {0}")]
     Internal(String),
@@ -39,6 +54,14 @@ impl IntoResponse for AppError {
                 ErrorResponse {
                     success: false,
                     message: "文件操作失败".to_string(),
+                    code: Some(500),
+                },
+            ),
+            AppError::Database(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorResponse {
+                    success: false,
+                    message: "数据库操作失败".to_string(),
                     code: Some(500),
                 },
             ),
@@ -80,6 +103,38 @@ impl IntoResponse for AppError {
                     success: false,
                     message: msg,
                     code: Some(401),
+                },
+            ),
+            AppError::Forbidden(msg) => (
+                StatusCode::FORBIDDEN,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(403),
+                },
+            ),
+            AppError::Conflict(msg) => (
+                StatusCode::CONFLICT,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(409),
+                },
+            ),
+            AppError::NotFound(msg) => (
+                StatusCode::NOT_FOUND,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(404),
+                },
+            ),
+            AppError::QuotaExceeded(msg) => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(413),
                 },
             ),
             AppError::Internal(msg) => (
