@@ -110,7 +110,7 @@ export function Gallery() {
              >
                <img
                  src={thumbnailUrl(image.hash)}
-                 alt={image.hash}
+                 alt={image.original_filename}
                  className="w-full h-full object-cover transition-transform group-hover:scale-110 group-active:scale-110"
                  loading="lazy"
                />
@@ -132,7 +132,7 @@ export function Gallery() {
                  </Button>
                </div>
                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 md:p-2 truncate">
-                 {image.hash.substring(0, 8)}...
+                 {image.original_filename}...
                </div>
              </div>
            ))}

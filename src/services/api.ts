@@ -79,7 +79,7 @@ export async function getGalleryImages(offset: number = 0, limit: number = 32): 
     limit: limit.toString(),
   })
 
-  const response = await fetch(`${getApiBaseUrl()}/api/images?${params}`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/images/query?${params}`, {
     headers: getHeaders(),
   })
 
