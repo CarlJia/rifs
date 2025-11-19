@@ -129,3 +129,41 @@ export async function getHealthStatus(): Promise<any> {
 
   return response.json()
 }
+
+// 通用 API 客户端
+const api = {
+  async get(endpoint: string) {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      headers: getHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(`GET ${endpoint} failed: ${response.statusText}`)
+    }
+    return response.json()
+  },
+
+  async post(endpoint: string, data?: any) {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: data ? JSON.stringify(data) : undefined,
+    })
+    if (!response.ok) {
+      throw new Error(`POST ${endpoint} failed: ${response.statusText}`)
+    }
+    return response.json()
+  },
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    if (!response.ok) {
+      throw new Error(`DELETE ${endpoint} failed: ${response.statusText}`)
+    }
+    return response.json()
+  },
+}
+
+export default api

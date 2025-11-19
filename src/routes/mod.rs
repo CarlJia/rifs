@@ -10,10 +10,11 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::app_state::AppState;
 use crate::config::AppConfig;
 use crate::handlers::{
-    api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
-    delete_image, gallery_page, get_auth_config, get_cache_stats, get_image, get_image_info,
-    get_stats, get_system_stats, health_check_detailed, login_page, query_images_get,
-    query_images_post, serve_static, upload_image, verify_token,
+    api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, create_token,
+    decay_heat_scores, delete_image, delete_token, gallery_page, get_auth_config,
+    get_cache_stats, get_image, get_image_info, get_stats, get_system_stats,
+    get_token, health_check_detailed, list_tokens, login_page, query_images_get,
+    query_images_post, serve_static, upload_image, user_management_page, verify_token,
 };
 use crate::middleware::{log_requests, request_timeout};
 
@@ -28,9 +29,15 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         .route("/login", get(login_page))
         // 图片瀑布流页面
         .route("/gallery", get(gallery_page))
+        // 用户管理页面
+        .route("/user-management", get(user_management_page))
         // 认证相关路由
         .route("/api/auth/verify", post(verify_token))
         .route("/api/auth/config", get(get_auth_config))
+        // Token管理接口
+        .route("/api/tokens/list", get(list_tokens))
+        .route("/api/tokens/create", post(create_token))
+        .route("/api/tokens/{id}", get(get_token).delete(delete_token))
         // 健康检查
         .route("/health", get(health_check_detailed))
         .route("/health/detailed", get(health_check_detailed))

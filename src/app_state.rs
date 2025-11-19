@@ -3,6 +3,7 @@ use tracing::{error, info};
 
 use crate::config::AppConfig;
 use crate::database::{DatabasePool, MigrationManager};
+use crate::services::TokenService;
 use crate::utils::AppError;
 
 /// 应用程序全局状态
@@ -25,6 +26,7 @@ impl AppState {
     /// - 加载应用配置
     /// - 初始化数据库连接池
     /// - 运行数据库迁移
+    /// - 初始化默认管理员账户
     pub async fn new() -> Result<Self, AppError> {
         info!("初始化应用状态");
 
@@ -40,6 +42,12 @@ impl AppState {
 
         // 执行数据库健康检查
         db_pool.health_check().await?;
+
+        // 初始化默认管理员账户
+        let token_service = TokenService::new(connection);
+        if let Err(e) = token_service.ensure_default_admin().await {
+            error!("初始化默认管理员失败: {}", e);
+        }
 
         info!("应用状态初始化完成");
 

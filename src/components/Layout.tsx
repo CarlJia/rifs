@@ -7,13 +7,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Menu, LogOut, Home, Image, Settings, Sliders } from 'lucide-react'
+import { Menu, LogOut, Home, Image, Settings, Sliders, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface LayoutProps {
   children: React.ReactNode
-  currentPage: 'home' | 'gallery' | 'cache' | 'settings'
-  onPageChange: (page: 'home' | 'gallery' | 'cache' | 'settings') => void
+  currentPage: 'home' | 'gallery' | 'cache' | 'settings' | 'users'
+  onPageChange: (page: 'home' | 'gallery' | 'cache' | 'settings' | 'users') => void
 }
 
 export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
@@ -50,6 +50,7 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
     { id: 'home', label: '首页', icon: Home },
     { id: 'gallery', label: '图片库', icon: Image },
     { id: 'cache', label: '缓存管理', icon: Settings },
+    { id: 'users', label: '用户管理', icon: Users },
     { id: 'settings', label: '系统设置', icon: Sliders },
   ] as const
 
