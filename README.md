@@ -31,142 +31,22 @@
 
 ---
 
-## ✨ 特性
+## 📖 完整文档
 
-- **高性能** - Rust编写，内存安全，高并发处理
-- **多格式支持** - 支持JPEG、PNG、GIF、WebP、AVIF、ICO 6种主流图片格式
-- **实时转换** - 通过URL参数进行图片尺寸、格式、质量转换
-- **智能缓存** - 自动缓存转换结果，支持LRU清理策略
-- **去重存储** - SHA256哈希去重，避免重复存储
-- **管理面板** - 内置Web管理界面，支持缓存管理和系统监控
+👉 **[查看完整文档](./DOCUMENTATION.md)**
 
-## 🏗️ 系统架构
+完整文档包含以下内容：
+- 项目概述和系统架构
+- 快速开始指南
+- 功能特性详解
+- API接口文档
+- 配置说明
+- 前端开发指南
+- 移动端适配
+- 部署指南
+- 更新日志
 
-```mermaid
-flowchart TD
-    %% 客户端
-    Client["🌍 HTTP客户端<br/>Web/Mobile/API"]
-    
-    %% 接入层
-    Nginx["🔄 Nginx反向代理<br/>负载均衡·SSL·缓存"]
-    Server["🦀 RIFS服务器<br/>Rust + Axum框架"]
-    
-    %% Web框架层
-    Middleware["🛡️ 中间件层<br/>CORS·日志·限流·认证"]
-    Router["🚦 路由层<br/>RESTful API路由"]
-    
-    %% 处理器层 - 分开排列避免重叠
-    ImageH["🖼️ ImageHandler<br/>图片上传·访问·转换"]
-    CacheH["⚡ CacheHandler<br/>缓存管理·清理·统计"]
-    HealthH["💚 HealthHandler<br/>健康检查·系统监控"]
-    StaticH["📁 StaticHandler<br/>静态资源·管理面板"]
-    
-    %% 服务层 - 分层排列
-    ImageS["📸 ImageService<br/>图片业务逻辑"]
-    TransformS["🔄 TransformService<br/>格式转换·尺寸调整"]
-    CacheS["🧠 CacheService<br/>智能缓存策略"]
-    
-    %% 工具层
-    Utils["🛠️ FormatUtils<br/>格式检测·验证"]
-    Transform["⚙️ StaticTransform<br/>图像处理引擎"]
-    
-    %% 仓储层
-    ImageRepo["📊 ImageRepository<br/>图片元数据管理"]
-    CacheRepo["🗃️ CacheRepository<br/>缓存索引管理"]
-    BaseRepo["🏛️ BaseRepository<br/>通用数据访问"]
-    
-    %% 数据存储
-    SQLite[("🗃️ SQLite<br/>默认轻量级数据库")]
-    PostgreSQL[("🐘 PostgreSQL<br/>高性能生产数据库")]
-    MySQL[("🐬 MySQL<br/>兼容性数据库")]
-    
-    %% 文件存储
-    Uploads["📤 原图存储<br/>uploads/目录<br/>SHA256分层"]
-    Cache["⚡ 缓存存储<br/>cache/目录<br/>转换结果"]
-    
-    %% 状态管理
-    AppState["🌟 AppState<br/>全局状态管理器"]
-    DBPool["🏊 DatabasePool<br/>数据库连接池"]
-    Config["⚙️ AppConfig<br/>配置热加载管理"]
-    
-    %% 垂直主流程 - 避免交叉
-    Client --> Nginx
-    Nginx --> Server
-    Server --> Middleware
-    Middleware --> Router
-    
-    %% 路由到处理器 - 分散连接
-    Router --> ImageH
-    Router --> CacheH
-    Router --> HealthH
-    Router --> StaticH
-    
-    %% 处理器到服务层 - 明确分工
-    ImageH --> ImageS
-    ImageH --> TransformS
-    CacheH --> CacheS
-    
-    %% 服务层到工具层 - 水平连接
-    ImageS --> Utils
-    TransformS --> Transform
-    
-    %% 服务层到仓储层 - 直接对应
-    ImageS --> ImageRepo
-    CacheS --> CacheRepo
-    
-    %% 仓储继承关系
-    ImageRepo --> BaseRepo
-    CacheRepo --> BaseRepo
-    
-    %% 数据存储连接 - 分开避免重叠
-    BaseRepo --> SQLite
-    BaseRepo --> PostgreSQL
-    BaseRepo --> MySQL
-    
-    %% 文件存储连接 - 独立路径
-    ImageS -.-> Uploads
-    CacheS -.-> Cache
-    
-    %% 状态管理连接 - 侧边路径
-    AppState --> DBPool
-    AppState --> Config
-    DBPool -.-> BaseRepo
-    
-    %% 样式定义 - 增强可读性
-    style Client fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style Nginx fill:#f1f8e9,stroke:#689f38,stroke-width:2px
-    style Server fill:#fce4ec,stroke:#c2185b,stroke-width:3px
-    
-    style Middleware fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style Router fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    style ImageH fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    style CacheH fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    style HealthH fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    style StaticH fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    
-    style ImageS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style TransformS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style CacheS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    style Utils fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    style Transform fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    
-    style ImageRepo fill:#e0f2f1,stroke:#00695c,stroke-width:2px
-    style CacheRepo fill:#e0f2f1,stroke:#00695c,stroke-width:2px
-    style BaseRepo fill:#e0f2f1,stroke:#00695c,stroke-width:3px
-    
-    style SQLite fill:#fff8e1,stroke:#f9a825,stroke-width:2px
-    style PostgreSQL fill:#fff8e1,stroke:#f9a825,stroke-width:2px
-    style MySQL fill:#fff8e1,stroke:#f9a825,stroke-width:2px
-    
-    style Uploads fill:#fafafa,stroke:#424242,stroke-width:2px
-    style Cache fill:#fafafa,stroke:#424242,stroke-width:2px
-    
-    style AppState fill:#e8eaf6,stroke:#3f51b5,stroke-width:3px
-    style DBPool fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
-    style Config fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
-```
+---
 
 ## 🚀 快速开始
 
@@ -193,94 +73,33 @@ docker run --rm --pull always -d \
   djkcyl/rifs:latest
 ```
 
-## 📖 使用示例
-
-### 上传图片
+### Tauri 桌面应用
 
 ```bash
-# 基础上传
-curl -F "file=@image.jpg" http://localhost:3000/upload
+# 安装依赖
+npm install
 
-# 带认证令牌上传
-curl -F "file=@image.jpg" \
-     -H "Authorization: Bearer your_token_here" \
-     http://localhost:3000/upload
+# 开发模式
+npm run tauri:dev
 
-# 响应示例
-{
-  "success": true,
-  "data": {
-    "hash": "a1b2c3d4e5f6...",
-    "filename": "a1b2c3d4e5f6...",
-    "original_name": "image.jpg",
-    "size": 102400,
-    "format": "jpeg",
-    "width": 1920,
-    "height": 1080
-  }
-}
+# 生产构建
+npm run tauri:build
 ```
 
-### 图片访问
+---
 
-```bash
-# 原图
-http://localhost:3000/images/a1b2c3d4...
+## ✨ 核心特性
 
-# 转换 - 宽度800px
-http://localhost:3000/images/a1b2c3d4...@w800
+- **高性能** - Rust编写，内存安全，高并发处理
+- **多格式支持** - 支持JPEG、PNG、GIF、WebP、AVIF、ICO 6种主流图片格式
+- **实时转换** - 通过URL参数进行图片尺寸、格式、质量转换
+- **智能缓存** - 自动缓存转换结果，支持LRU清理策略
+- **去重存储** - SHA256哈希去重，避免重复存储
+- **管理面板** - 内置Web管理界面，支持缓存管理和系统监控
+- **用户管理** - 基于角色的访问控制，支持管理员和普通用户
+- **跨平台** - 支持Web、Windows、macOS、Linux
 
-# 复杂转换 - 尺寸+格式+质量
-http://localhost:3000/images/a1b2c3d4...@w800_h600_jpeg_q90
-
-# 获取图片信息
-curl http://localhost:3000/images/a1b2c3d4.../info
-```
-
-### 转换参数
-
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `w{数字}` | 最大宽度 | `w800` |
-| `h{数字}` | 最大高度 | `h600` |
-| `{格式}` | 目标格式 | `jpeg`, `png`, `webp`, `avif`, `ico` |
-| `q{数字}` | 质量1-100 | `q90` |
-| `na[w/b/#hex]` | 去透明+背景色 | `naw`(白), `nab`(黑), `na#ff0000` |
-
-### API接口
-
-```bash
-# 查询图片列表
-curl "http://localhost:3000/api/images/query?page=1&size=10"
-
-# 获取系统统计
-curl http://localhost:3000/api/stats
-
-# 获取缓存统计
-curl http://localhost:3000/api/cache/stats
-
-# 健康检查
-curl http://localhost:3000/health/detailed
-```
-
-## ⚙️ 配置
-
-首次运行时会自动创建 `config.toml` 配置文件，包含所有配置项的详细说明。修改配置后重启服务即可生效。
-
-也可以通过环境变量覆盖配置，格式为 `RIFS_` 前缀，如：
-```bash
-export RIFS_SERVER_PORT=8080
-export RIFS_AUTH_ENABLED=true
-export RIFS_AUTH_TOKEN="your-secret-token"
-```
-
-### 主要配置项
-
-- **服务器配置**: 端口、主机、CORS、超时设置
-- **认证配置**: 启用/禁用认证、令牌设置
-- **存储配置**: 文件大小限制、存储目录
-- **缓存配置**: 缓存策略、清理机制、大小限制
-- **数据库配置**: 支持SQLite、PostgreSQL、MySQL
+---
 
 ## 📊 管理面板
 
@@ -288,140 +107,20 @@ export RIFS_AUTH_TOKEN="your-secret-token"
 - **图片画廊**: http://localhost:3000/gallery
 - **缓存管理**: http://localhost:3000/cache/management
 - **登录页面**: http://localhost:3000/login
+- **用户管理**: http://localhost:3000/user-management
 
-## 🖼️ 支持格式
+---
 
-| 格式 | 扩展名 | 读取 | 写入 | URL转换 | 质量控制 |
-|------|--------|------|------|---------|----------|
-| **JPEG** | .jpg, .jpeg | ✅ | ✅ | ✅ | ✅ |
-| **PNG** | .png | ✅ | ✅ | ✅ | ✅ |
-| **GIF** | .gif | ✅ | ✅ | ✅ | ❌ |
-| **WebP** | .webp | ✅ | ✅ | ✅ | ✅ |
-| **AVIF** | .avif | ✅ | ✅ | ✅ | ❌ |
-| **ICO** | .ico | ✅ | ✅ | ✅ | ❌ |
+## 🔗 相关链接
 
-### 转换能力说明
-
-- ✅ **完全支持**: 可读取、写入、URL参数转换
-- ❌ **仅存储**: 支持上传存储原图，不支持参数转换
-- **动画处理**: GIF/WebP动画转换时自动提取第一帧
-- **质量控制**: JPEG、PNG、WebP支持质量参数优化
-- **智能压缩**: PNG根据质量参数智能选择压缩级别和滤波器
-
-## 🏗️ 项目结构
-
-```
-src/
-├── app_state.rs          # 应用状态管理
-├── config.rs             # 配置管理
-├── database/             # 数据库模块
-│   ├── migrations.rs     # 数据库迁移
-│   ├── mod.rs           # 模块导出
-│   └── pool.rs          # 连接池管理
-├── entities/             # 数据库实体
-│   ├── cache.rs         # 缓存实体
-│   ├── image.rs         # 图片实体
-│   └── mod.rs           # 模块导出
-├── handlers/             # HTTP处理器
-│   ├── auth_handler.rs  # 认证处理
-│   ├── cache_handler.rs # 缓存管理
-│   ├── health_handler.rs # 健康检查
-│   ├── image_handler.rs # 图片处理
-│   ├── mod.rs           # 模块导出
-│   └── static_files.rs  # 静态文件
-├── logging/              # 日志模块
-│   ├── mod.rs           # 日志配置
-│   └── rotating_writer.rs # 日志轮转
-├── middleware/           # 中间件
-│   ├── auth.rs          # 认证中间件
-│   ├── logging.rs       # 日志中间件
-│   ├── mod.rs           # 模块导出
-│   └── timeout.rs       # 超时中间件
-├── migrations/           # 数据库迁移文件
-│   ├── m20240101_000001_create_images_table.rs
-│   ├── m20241201_000001_create_cache_table.rs
-│   └── mod.rs           # 迁移管理
-├── models/               # 数据模型
-│   └── mod.rs           # 响应模型定义
-├── repositories/         # 数据访问层
-│   ├── base.rs          # 基础仓储
-│   ├── cache.rs         # 缓存仓储
-│   ├── image.rs         # 图片仓储
-│   └── mod.rs           # 模块导出
-├── routes/               # 路由定义
-│   └── mod.rs           # 路由配置
-├── server/               # 服务器模块
-│   └── mod.rs           # 服务器启动
-├── services/             # 业务逻辑层
-│   ├── cache_service.rs # 缓存服务
-│   ├── image_format_utils.rs # 格式工具
-│   ├── image_service.rs # 图片服务
-│   ├── image_transform_service.rs # 转换服务
-│   ├── mod.rs           # 模块导出
-│   └── static_image_transform.rs # 静态转换
-└── utils/                # 工具模块
-    ├── byte_size.rs     # 字节大小处理
-    ├── duration.rs      # 时间处理
-    ├── error.rs         # 错误处理
-    ├── file.rs          # 文件操作
-    └── mod.rs           # 模块导出
-```
-
-## 🔧 开发指南
-
-### 构建项目
-
-```bash
-# 开发模式
-cargo build
-
-# 发布模式（优化体积）
-cargo build --release
-
-# 最小体积构建
-cargo build --profile release-small
-```
-
-### 运行测试
-
-```bash
-# 运行所有测试
-cargo test
-
-# 运行特定测试
-cargo test test_upload_endpoint_functionality
-
-# 带详细输出
-cargo test -- --nocapture
-```
-
-### 代码质量
-
-项目采用模块化架构设计，遵循Rust最佳实践：
-- 使用SeaORM进行数据库操作
-- Axum框架提供Web服务
-- 分层架构：Handler → Service → Repository
-- 完整的错误处理机制
-- 详细的日志记录
-
-## 🔒 安全特性
-
-- **认证保护**: 支持Bearer Token认证
-- **文件类型验证**: 严格验证上传文件类型
-- **大小限制**: 可配置的文件大小限制
-- **CORS支持**: 跨域资源共享配置
-- **请求超时**: 防止长时间阻塞请求
-
-## 📈 性能特性
-
-- **智能缓存**: LRU缓存策略，自动清理
-- **去重存储**: SHA256哈希避免重复存储
-- **异步处理**: 基于Tokio的高并发处理
-- **连接池**: 数据库连接复用
-- **内存优化**: 最小化内存占用
+- [完整文档](./DOCUMENTATION.md)
+- [GitHub 仓库](https://github.com/djkcyl/rifs)
+- [Docker Hub](https://hub.docker.com/r/djkcyl/rifs)
 
 ---
 
 <div align="center">
+
 Made with ❤️ and 🦀
-</div> 
+
+</div>
