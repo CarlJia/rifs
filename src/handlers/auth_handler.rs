@@ -60,9 +60,12 @@ pub async fn get_auth_config() -> Result<impl IntoResponse, AppError> {
 
 /// 验证认证令牌
 pub async fn verify_token(
-    State(_app_state): State<AppState>,
+    State(app_state): State<AppState>,
     Json(payload): Json<AuthRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    use crate::middleware::verify_token_from_headers;
+    use axum::http::{HeaderMap, HeaderName, header};
+    
     let config = AppConfig::get();
     let auth_config = &config.auth;
 
@@ -71,15 +74,30 @@ pub async fn verify_token(
         return Ok(Json(AuthResponse::success("认证已禁用，无需验证", None)));
     }
 
-    // 检查 token 是否匹配
-    if let Some(expected_token) = &auth_config.token {
-        if payload.token.trim() == expected_token.trim() {
-            // 配置文件中的token被认为是管理员token
-            Ok(Json(AuthResponse::success("认证成功", Some("admin".to_string()))))
-        } else {
-            Ok(Json(AuthResponse::error("认证令牌无效")))
-        }
+    // 构造请求头来模拟token验证
+    let mut headers = HeaderMap::new();
+    let header_name: HeaderName = auth_config
+        .header_name
+        .parse()
+        .unwrap_or_else(|_| header::AUTHORIZATION.clone());
+    
+    // 根据header类型设置token格式
+    if header_name == header::AUTHORIZATION {
+        headers.insert(header_name, format!("Bearer {}", payload.token.trim()).parse().unwrap());
     } else {
-        Ok(Json(AuthResponse::error("未配置认证令牌")))
+        headers.insert(header_name, payload.token.trim().parse().unwrap());
+    }
+
+    // 使用verify_token_from_headers验证token
+    match verify_token_from_headers(&headers, &app_state).await {
+        Ok(token_info) => {
+            Ok(Json(AuthResponse::success(
+                "认证成功", 
+                Some(token_info.role.as_str().to_string())
+            )))
+        }
+        Err(err) => {
+            Ok(Json(AuthResponse::error(&format!("认证失败: {}", err))))
+        }
     }
 }

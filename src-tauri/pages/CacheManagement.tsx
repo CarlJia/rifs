@@ -43,15 +43,25 @@ export function CacheManagement() {
   const handleClean = async () => {
     setCleaning(true)
     try {
-      await cleanCache(
+      const result = await cleanCache(
         maxAge ? parseInt(maxAge) : undefined,
         maxSize ? parseInt(maxSize) : undefined
       )
-      alert('缓存清理成功')
+      
+      // 显示详细的清理结果
+      if (result.data) {
+        const { cleaned_count, freed_space, applied_policies } = result.data
+        const message = `缓存清理成功！\n清理项目: ${cleaned_count}\n释放空间: ${formatBytes(freed_space)}\n应用策略: ${applied_policies.join(', ')}`
+        alert(message)
+      } else {
+        alert('缓存清理成功')
+      }
+      
       await loadStats()
     } catch (error) {
       console.error('Failed to clean cache:', error)
-      alert('缓存清理失败')
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      alert(`缓存清理失败: ${errorMessage}`)
     } finally {
       setCleaning(false)
     }
@@ -112,7 +122,7 @@ export function CacheManagement() {
          </CardHeader>
          <CardContent className="p-3 md:p-6 pt-0 space-y-3 md:space-y-4">
            <div>
-             <Label htmlFor="max-age" className="text-xs md:text-sm">最大文件年龄（秒，留空则不限制）</Label>
+             <Label htmlFor="max-age" className="text-xs md:text-sm">最大文件年龄（秒，86400秒=1天，留空则不限制）</Label>
              <Input
                id="max-age"
                type="number"

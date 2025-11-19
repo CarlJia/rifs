@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tracing::info;
 
 use crate::app_state::AppState;
-use crate::middleware::{verify_token_from_headers, AdminGuard};
+use crate::middleware::verify_token_from_headers;
 use crate::models::{CreateTokenPayload, TokenQuery, TokenRole};
 use crate::services::TokenService;
 use crate::utils::AppError;
@@ -25,10 +25,18 @@ pub struct CreateTokenRequest {
 /// 列出Token - 仅管理员
 pub async fn list_tokens(
     State(app_state): State<AppState>,
-    _admin: AdminGuard,
+    headers: axum::http::HeaderMap,
     Query(query): Query<TokenQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到Token列表请求: {:?}", query);
+
+    // 验证token并检查管理员权限
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+    
+    // 检查是否为管理员
+    if auth_user.role != crate::models::TokenRole::Admin {
+        return Err(AppError::Unauthorized("需要管理员权限访问此资源".to_string()));
+    }
 
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
@@ -53,9 +61,16 @@ pub async fn list_tokens(
 /// 创建Token - 仅管理员
 pub async fn create_token(
     State(app_state): State<AppState>,
-    _admin: AdminGuard,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<CreateTokenRequest>,
 ) -> Result<impl IntoResponse, AppError> {
+    // 验证token并检查管理员权限
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+    
+    // 检查是否为管理员
+    if auth_user.role != crate::models::TokenRole::Admin {
+        return Err(AppError::Unauthorized("需要管理员权限访问此资源".to_string()));
+    }
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
     
@@ -82,8 +97,15 @@ pub async fn create_token(
 pub async fn delete_token(
     State(app_state): State<AppState>,
     Path(token_id): Path<i32>,
-    _admin: AdminGuard,
+    headers: axum::http::HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
+    // 验证token并检查管理员权限
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+    
+    // 检查是否为管理员
+    if auth_user.role != crate::models::TokenRole::Admin {
+        return Err(AppError::Unauthorized("需要管理员权限访问此资源".to_string()));
+    }
     let token_service = TokenService::new(app_state.db_pool().get_connection());
     token_service.delete_token_with_data(app_state.db_pool(), token_id).await?;
     Ok(Json(serde_json::json!({ "success": true })))
@@ -93,8 +115,15 @@ pub async fn delete_token(
 pub async fn get_token(
     State(app_state): State<AppState>,
     Path(token_id): Path<i32>,
-    _admin: AdminGuard,
+    headers: axum::http::HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
+    // 验证token并检查管理员权限
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+    
+    // 检查是否为管理员
+    if auth_user.role != crate::models::TokenRole::Admin {
+        return Err(AppError::Unauthorized("需要管理员权限访问此资源".to_string()));
+    }
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
     let token = token_service.get_token(token_id).await?;

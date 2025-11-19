@@ -7,7 +7,7 @@ pub mod token_handler;
 
 pub use auth_handler::{get_auth_config, verify_token};
 pub use cache_handler::{
-    auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
+    auto_cleanup_cache, cache_management_dashboard, clean_cache, clear_all_cache, decay_heat_scores,
     get_cache_stats,
 };
 pub use health_handler::{get_system_stats, health_check_detailed};

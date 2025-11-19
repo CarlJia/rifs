@@ -38,6 +38,9 @@ pub trait CacheRepositoryTrait: Repository {
 
     /// 获取低热度评分的缓存列表（用于清理）
     async fn cleanup_low_heat_caches(&self) -> Result<Vec<CacheInfo>, AppError>;
+
+    /// 获取所有缓存项
+    async fn list_all_caches(&self) -> Result<Vec<CacheInfo>, AppError>;
 }
 
 /// 缓存仓储实现
@@ -242,6 +245,33 @@ impl CacheRepositoryTrait for CacheRepository {
             0.0
         };
 
+        // 生成 items 列表（用于前端显示）
+        let items: Vec<crate::models::CacheItem> = cache_models
+            .iter()
+            .map(|model| {
+                let hash_prefix = if model.cache_key.len() > 8 {
+                    model.cache_key.chars().take(8).collect()
+                } else {
+                    model.cache_key.clone()
+                };
+                
+                // 从转换参数中提取格式
+                let format = if let Some(pos) = model.transform_params.rfind('_') {
+                    let format_part = &model.transform_params[pos + 1..];
+                    format_part.to_string()
+                } else {
+                    "unknown".to_string()
+                };
+
+                crate::models::CacheItem {
+                    hash: hash_prefix,
+                    format,
+                    file_size: model.file_size as u64,
+                    last_accessed: model.last_accessed,
+                }
+            })
+            .collect();
+
         Ok(CacheStats {
             total_count: total_count as i64,
             total_size: total_size as i64,
@@ -249,6 +279,7 @@ impl CacheRepositoryTrait for CacheRepository {
             hit_rate,
             last_cleanup: None,
             top_cached: Vec::new(),
+            items,
         })
     }
 
@@ -319,6 +350,21 @@ impl CacheRepositoryTrait for CacheRepository {
 
         let caches: Vec<CacheInfo> = models.into_iter().map(|model| model.into()).collect();
         debug!("找到 {} 个低热度缓存项", caches.len());
+
+        Ok(caches)
+    }
+
+    async fn list_all_caches(&self) -> Result<Vec<CacheInfo>, AppError> {
+        debug!("获取所有缓存项");
+
+        let connection = self.get_connection();
+        let models = Cache::find()
+            .all(&*connection)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询所有缓存失败: {}", e)))?;
+
+        let caches: Vec<CacheInfo> = models.into_iter().map(|model| model.into()).collect();
+        debug!("获取到 {} 个缓存项", caches.len());
 
         Ok(caches)
     }

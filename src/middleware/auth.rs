@@ -210,9 +210,10 @@ where
                 }
             }
 
-            // 如果不是配置文件中的token，则返回错误（暂时不支持数据库token查询）
-            // TODO: 实现从数据库查询token的逻辑
-            Err(AppError::Unauthorized("Token不存在".to_string()))
+            // 如果不是配置文件中的token，暂时不支持数据库查询
+            // TODO: 需要重构这个函数以支持数据库查询
+            warn!("Token验证失败: 不支持数据库token查询");
+            return Err(AppError::Unauthorized("Token不存在".to_string()));
         } else {
             warn!("认证失败: 缺少或提供了无效的凭证");
             Err(AppError::Unauthorized(
@@ -231,7 +232,11 @@ where
 {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // 创建一个临时的 app_state 来调用 verify_token_from_headers
+        // 注意：这里我们需要从 state 中获取 AppState，但由于 FromRequestParts 的限制，
+        // 我们需要手动实现验证逻辑
+        
         let config = AppConfig::get();
         let auth_config = &config.auth;
 
@@ -273,7 +278,7 @@ where
                 value.trim()
             };
 
-            // 首先检查是否是配置文件中的管理员token
+            // 首先检查是否是配置文件中的管理员token（向后兼容）
             if let Some(expected_token) = &auth_config.token {
                 if token.trim() == expected_token.trim() {
                     // 创建一个管理员token信息
@@ -293,6 +298,9 @@ where
                 }
             }
 
+            // 如果不是配置文件中的token，需要从数据库验证
+            // 但由于 FromRequestParts 的限制，我们无法直接访问 AppState
+            // 这里暂时返回错误，需要重构为使用中间件的方式
             warn!("Admin访问被拒绝: 提供的令牌无效或权限不足");
             Err(AppError::Unauthorized(
                 "需要管理员权限访问此资源".to_string(),

@@ -453,8 +453,23 @@ pub struct CacheStats {
     pub hit_rate: f64,
     /// 热门缓存项（按访问次数排序）
     pub top_cached: Vec<CacheInfo>,
+    /// 缓存项列表（用于前端显示）
+    pub items: Vec<CacheItem>,
     /// 最近清理时间
     pub last_cleanup: Option<DateTime<Utc>>,
+}
+
+/// 缓存项（简化版，用于前端显示）
+#[derive(Debug, Serialize)]
+pub struct CacheItem {
+    /// 哈希值（缓存键的前8位）
+    pub hash: String,
+    /// 格式
+    pub format: String,
+    /// 文件大小
+    pub file_size: u64,
+    /// 最后访问时间
+    pub last_accessed: DateTime<Utc>,
 }
 
 /// 缓存清理结果

@@ -10,7 +10,7 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::app_state::AppState;
 use crate::config::AppConfig;
 use crate::handlers::{
-    api_docs, auto_cleanup_cache, cache_management_dashboard, clear_all_cache, create_token,
+    api_docs, auto_cleanup_cache, cache_management_dashboard, clean_cache, clear_all_cache, create_token,
     decay_heat_scores, delete_image, delete_token, gallery_page, get_auth_config,
     get_cache_stats, get_image, get_image_info, get_stats, get_system_stats,
     get_token, health_check_detailed, list_tokens, login_page, query_images_get,
@@ -60,6 +60,7 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         .route("/api/images/{filename}", delete(delete_image))
         // 缓存管理接口（简化版）
         .route("/api/cache/stats", get(get_cache_stats))
+        .route("/api/cache/clean", post(clean_cache))
         .route("/api/cache/cleanup/auto", post(auto_cleanup_cache))
         .route("/api/cache/decay", post(decay_heat_scores))
         .route("/api/cache/clear", delete(clear_all_cache))

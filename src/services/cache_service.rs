@@ -358,6 +358,80 @@ impl CacheService {
         Ok((cleaned_count, freed_space))
     }
 
+    /// 通用清理缓存方法
+    /// 支持按最大年龄和最大大小参数清理
+    pub async fn cleanup_cache(&self, max_age_days: Option<u32>, max_size_bytes: Option<u64>) -> Result<CacheCleanupResult, AppError> {
+        let start_time = std::time::Instant::now();
+        let mut total_cleaned = 0;
+        let mut total_freed = 0;
+        let mut applied_policies = Vec::new();
+
+        // 获取所有缓存项
+        let all_caches = self.cache_repo.list_all_caches().await?;
+        
+        let now = Utc::now();
+        let mut to_cleanup = Vec::new();
+
+        for cache in &all_caches {
+            let should_cleanup = if let Some(max_age) = max_age_days {
+                // 按年龄清理
+                let age_days = (now - cache.last_accessed).num_days();
+                if age_days > max_age as i64 {
+                    applied_policies.push(format!("按年龄清理: {} 天", age_days));
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if should_cleanup {
+                to_cleanup.push(cache.clone());
+            }
+        }
+
+        // 如果指定了最大大小，按大小清理
+        if let Some(max_size) = max_size_bytes {
+            let mut current_size: u64 = to_cleanup.iter().map(|c| c.file_size as u64).sum();
+            
+            // 获取剩余的缓存项（未按年龄清理的）
+            let remaining_caches: Vec<_> = all_caches.iter()
+                .filter(|cache| !to_cleanup.iter().any(|c| c.cache_key == cache.cache_key))
+                .collect();
+            
+            // 按LRU排序剩余缓存项
+            let mut sorted_remaining = remaining_caches.clone();
+            sorted_remaining.sort_by(|a, b| a.last_accessed.cmp(&b.last_accessed));
+            
+            for cache in sorted_remaining {
+                if current_size >= max_size {
+                    break;
+                }
+                to_cleanup.push(cache.clone());
+                current_size += cache.file_size as u64;
+            }
+            
+            if max_size_bytes.is_some() {
+                applied_policies.push(format!("按大小清理: 最大 {} 字节", max_size));
+            }
+        }
+
+        // 执行清理
+        if !to_cleanup.is_empty() {
+            let (cleaned, freed) = self.cleanup_candidates(to_cleanup).await?;
+            total_cleaned = cleaned;
+            total_freed = freed;
+        }
+
+        Ok(CacheCleanupResult {
+            cleaned_count: total_cleaned,
+            freed_space: total_freed,
+            applied_policies,
+            duration_ms: start_time.elapsed().as_millis() as u64,
+        })
+    }
+
     /// 清理所有缓存
     pub async fn clear_all(&self) -> Result<CacheCleanupResult, AppError> {
         let stats = self.cache_repo.get_stats().await?;

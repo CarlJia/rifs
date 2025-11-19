@@ -362,9 +362,18 @@ pub async fn get_image_info(
 /// 查询图片列表 (POST - JSON请求体)
 pub async fn query_images_post(
     State(app_state): State<AppState>,
-    Json(query): Json<ImageQuery>,
+    headers: axum::http::HeaderMap,
+    Json(mut query): Json<ImageQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到查询图片列表请求 (POST): {:?}", query);
+
+    // 验证token
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+
+    // 如果不是管理员，只能查看自己上传的图片
+    if auth_user.role != crate::models::TokenRole::Admin {
+        query.owner_token_id = Some(auth_user.id);
+    }
 
     let (images, total) = ImageService::query_images(app_state.db_pool(), &query).await?;
 
@@ -385,9 +394,18 @@ pub async fn query_images_post(
 /// 查询图片列表 (GET - URL查询参数)
 pub async fn query_images_get(
     State(app_state): State<AppState>,
-    Query(query): Query<ImageQuery>,
+    headers: axum::http::HeaderMap,
+    Query(mut query): Query<ImageQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到查询图片列表请求 (GET): {:?}", query);
+
+    // 验证token
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+
+    // 如果不是管理员，只能查看自己上传的图片
+    if auth_user.role != crate::models::TokenRole::Admin {
+        query.owner_token_id = Some(auth_user.id);
+    }
 
     let (images, total) = ImageService::query_images(app_state.db_pool(), &query).await?;
 
@@ -406,10 +424,23 @@ pub async fn query_images_get(
 }
 
 /// 获取统计信息
-pub async fn get_stats(State(app_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
+pub async fn get_stats(
+    State(app_state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
     info!("收到获取统计信息请求");
 
-    let stats = ImageService::get_stats(app_state.db_pool(), None).await?;
+    // 验证token
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+
+    // 如果不是管理员，只统计自己上传的图片
+    let owner_token_id = if auth_user.role != crate::models::TokenRole::Admin {
+        Some(auth_user.id)
+    } else {
+        None
+    };
+
+    let stats = ImageService::get_stats(app_state.db_pool(), owner_token_id).await?;
 
     info!("返回统计信息");
 
@@ -424,8 +455,23 @@ pub async fn get_stats(State(app_state): State<AppState>) -> Result<impl IntoRes
 pub async fn delete_image(
     State(app_state): State<AppState>,
     Path(identifier): Path<String>,
+    headers: axum::http::HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到删除图片请求: {}", identifier);
+
+    // 验证token
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
+
+    // 获取图片信息以检查权限
+    let image_info = ImageService::get_image_info(app_state.db_pool(), &identifier)
+        .await?
+        .ok_or(AppError::FileNotFound)?;
+
+    // 检查权限：管理员可以删除任何图片，普通用户只能删除自己上传的图片
+    if auth_user.role != crate::models::TokenRole::Admin 
+        && image_info.owner_token_id != Some(auth_user.id) {
+        return Err(AppError::Unauthorized("无权限删除此图片".to_string()));
+    }
 
     ImageService::delete_image(app_state.db_pool(), &identifier).await?;
 

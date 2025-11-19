@@ -41,7 +41,7 @@ export function Gallery() {
         setImages((prev) => [...prev, ...newImages])
       }
 
-      setTotalCount(result.data?.total_count || result.total_count || 0)
+      setTotalCount(result.data?.total || result.total || 0)
       setHasMore(newImages.length === 32)
       setOffset(newOffset + 32)
     } catch (error) {

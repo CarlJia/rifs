@@ -93,5 +93,4 @@ base64 = { version = "0.22", default-features = false }
 
 [dev-dependencies]
 # 测试依赖
-hex = "0.4"
 tower = { version = "0.5", features = ["util"] }
