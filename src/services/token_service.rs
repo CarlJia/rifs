@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, Rng};
-use sea_orm::{ActiveModelTrait, ActiveValue::Set, DatabaseConnection};
+use sea_orm::{ActiveValue::Set, DatabaseConnection};
 use sha2::{Digest, Sha256};
 use tracing::info;
 
@@ -10,7 +10,7 @@ use crate::database::DatabasePool;
 use crate::entities::api_token;
 use crate::models::{ApiTokenInfo, CreateTokenPayload, CreateTokenResponse, TokenRole};
 use crate::repositories::{ImageRepository, TokenRepository};
-use crate::services::ImageService;
+use crate::services::{CacheService, ImageService};
 use crate::utils::AppError;
 
 /// Token 业务逻辑
@@ -154,12 +154,19 @@ impl TokenService {
 
         let connection = pool.get_connection();
         let image_repo = ImageRepository::new(connection.clone());
-        let images = image_repo.find_by_owner(token_id).await?;
+        let cache_service = CacheService::new(connection.clone())?;
+        let images = {
+            use crate::repositories::ImageRepositoryTrait;
+            image_repo.find_by_owner(token_id).await?
+        };
         let total = images.len();
         let mut cleaned_cache = 0u64;
 
         for image in images {
-            cleaned_cache += ImageService::delete_image_by_info(pool, &image).await?;
+            // 删除图片文件
+            ImageService::delete_image(pool, &image.hash).await?;
+            // 清理相关缓存
+            cleaned_cache += cache_service.remove_by_original_hash(&image.hash).await?;
         }
 
         self.repo.delete_by_id(token_id).await?;
@@ -192,5 +199,22 @@ impl TokenService {
             .await?
             .map(ApiTokenInfo::from)
             .ok_or_else(|| AppError::BadRequest("Token不存在".to_string()))
+    }
+
+    /// 根据token hash查找token信息
+    pub async fn find_by_token_hash(&self, token: &str) -> Result<Option<ApiTokenInfo>, AppError> {
+        use sha2::{Digest, Sha256};
+        
+        // 计算token的hash
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        let token_hash = format!("{:x}", hasher.finalize());
+
+        let token_model = self
+            .repo
+            .find_by_hash(&token_hash)
+            .await?;
+            
+        Ok(token_model.map(ApiTokenInfo::from))
     }
 }

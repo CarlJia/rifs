@@ -15,29 +15,14 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        manager
-            .create_foreign_key(
-                ForeignKey::create()
-                    .name("fk_images_owner_token")
-                    .from(Images::Table, Images::OwnerTokenId)
-                    .to(ApiTokens::Table, ApiTokens::Id)
-                    .on_delete(ForeignKeyAction::SetNull)
-                    .on_update(ForeignKeyAction::Cascade)
-                    .to_owned(),
-            )
-            .await
+        // SQLite 不支持对现有表添加外键约束
+        // 在生产环境中，应该重建表来添加外键约束
+        // 这里我们只添加列，跳过外键约束的创建
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .drop_foreign_key(
-                ForeignKey::drop()
-                    .name("fk_images_owner_token")
-                    .table(Images::Table)
-                    .to_owned(),
-            )
-            .await?;
-
+        // 由于我们没有创建外键约束，所以也不需要删除它
         manager
             .alter_table(
                 Table::alter()

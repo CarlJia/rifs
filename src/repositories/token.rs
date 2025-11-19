@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
     TransactionTrait,
 };
 use std::sync::Arc;
@@ -77,6 +77,7 @@ impl TokenRepository {
             .filter(api_token::Column::Role.eq("admin"))
             .count(&*self.conn())
             .await
+            .map(|count| count as i64)
             .map_err(|e| AppError::Internal(format!("统计管理员数量失败: {}", e)))
     }
 
@@ -84,6 +85,7 @@ impl TokenRepository {
         ApiToken::find()
             .count(&*self.conn())
             .await
+            .map(|count| count as i64)
             .map_err(|e| AppError::Internal(format!("统计Token数量失败: {}", e)))
     }
 

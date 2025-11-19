@@ -9,18 +9,85 @@ use tracing::{error, info, warn};
 
 use crate::app_state::AppState;
 use crate::config::AppConfig;
-use crate::middleware::AuthGuard;
+
 use crate::models::{Base64ImageResponse, ImageQuery, ImageTransformParams, UploadResponse};
 use crate::services::{CacheService, ImageService, ImageTransformService};
 use crate::utils::AppError;
 
+/// 从请求头中验证token并返回用户信息
+async fn verify_token_from_headers(
+    headers: &axum::http::HeaderMap,
+    app_state: &AppState,
+) -> Result<crate::models::ApiTokenInfo, AppError> {
+    use axum::http::{header, HeaderName};
+    use crate::config::AppConfig;
+    use crate::services::TokenService;
+
+    let config = AppConfig::get();
+    let auth_config = &config.auth;
+
+    if !auth_config.enabled {
+        return Err(AppError::Unauthorized("认证未启用".to_string()));
+    }
+
+    let header_name: HeaderName = auth_config
+        .header_name
+        .parse()
+        .unwrap_or_else(|_| header::AUTHORIZATION.clone());
+    let is_authorization_header = header_name == header::AUTHORIZATION;
+
+    let header_value = headers
+        .get(&header_name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim);
+
+    if let Some(value) = header_value {
+        let token = if is_authorization_header {
+            if let Some(token) = value.strip_prefix("Bearer ") {
+                token.trim()
+            } else {
+                value.trim()
+            }
+        } else {
+            value.trim()
+        };
+
+        // 从数据库验证token
+        let connection = app_state.db_pool().get_connection();
+        let token_service = TokenService::new(connection);
+        
+        // 通过token hash查找用户信息
+        if let Some(token_info) = token_service.find_by_token_hash(token).await? {
+            if !token_info.is_active {
+                return Err(AppError::Unauthorized("Token已被禁用".to_string()));
+            }
+            
+            // 检查token是否过期
+            if let Some(expires_at) = token_info.expires_at {
+                if expires_at < chrono::Utc::now() {
+                    return Err(AppError::Unauthorized("Token已过期".to_string()));
+                }
+            }
+            
+            Ok(token_info)
+        } else {
+            Err(AppError::Unauthorized("Token不存在".to_string()))
+        }
+    } else {
+        Err(AppError::Unauthorized("缺少认证token".to_string()))
+    }
+}
+
 /// 图片上传接口
 pub async fn upload_image(
-    _: AuthGuard,
     State(app_state): State<AppState>,
+    headers: axum::http::HeaderMap,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到图片上传请求");
+
+    // 验证token
+    let auth_user = verify_token_from_headers(&headers, &app_state).await?;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         error!("解析multipart数据失败: {}", e);
@@ -51,7 +118,7 @@ pub async fn upload_image(
 
             // 保存图片（后端会自动检测真实文件类型）
             let image_info =
-                ImageService::save_image(app_state.db_pool(), &data, original_filename).await?;
+                ImageService::save_image(app_state.db_pool(), &data, original_filename, &auth_user).await?;
 
             info!("图片保存成功: {}", image_info.stored_name());
 
@@ -405,7 +472,7 @@ pub async fn query_images_get(
 pub async fn get_stats(State(app_state): State<AppState>) -> Result<impl IntoResponse, AppError> {
     info!("收到获取统计信息请求");
 
-    let stats = ImageService::get_stats(app_state.db_pool()).await?;
+    let stats = ImageService::get_stats(app_state.db_pool(), None).await?;
 
     info!("返回统计信息");
 

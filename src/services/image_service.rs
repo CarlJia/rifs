@@ -193,9 +193,9 @@ impl ImageService {
     }
 
     /// 获取统计信息
-    pub async fn get_stats(pool: &DatabasePool) -> Result<ImageStats, AppError> {
+    pub async fn get_stats(pool: &DatabasePool, owner_token_id: Option<i32>) -> Result<ImageStats, AppError> {
         let connection = pool.get_connection();
         let image_repo = ImageRepository::new(connection);
-        image_repo.get_stats().await
+        image_repo.get_stats(owner_token_id).await
     }
 }
