@@ -1,6 +1,69 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenRole {
+    Admin,
+    User,
+}
+
+impl TokenRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TokenRole::Admin => "admin",
+            TokenRole::User => "user",
+        }
+    }
+}
+
+impl Default for TokenRole {
+    fn default() -> Self {
+        TokenRole::User
+    }
+}
+
+impl From<&str> for TokenRole {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "admin" => TokenRole::Admin,
+            _ => TokenRole::User,
+        }
+    }
+}
+
+/// API Token 信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiTokenInfo {
+    pub id: i32,
+    pub name: String,
+    pub role: TokenRole,
+    pub max_upload_size: Option<i64>,
+    pub used_upload_size: i64,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub last_used_at: Option<DateTime<Utc>>,
+}
+
+/// 创建 Token 请求
+#[derive(Debug, Deserialize)]
+pub struct CreateTokenPayload {
+    pub name: String,
+    #[serde(default)]
+    pub role: TokenRole,
+    pub max_upload_size: Option<u64>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+/// 创建 Token 响应
+#[derive(Debug, Serialize)]
+pub struct CreateTokenResponse {
+    pub token: ApiTokenInfo,
+    pub plaintext: String,
+}
+
 /// 图片信息结构体
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageInfo {
@@ -20,6 +83,9 @@ pub struct ImageInfo {
     pub access_count: i64,
     /// 原始文件名
     pub original_filename: Option<String>,
+    /// 所属的 Token ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner_token_id: Option<i32>,
 }
 
 impl ImageInfo {
@@ -30,7 +96,7 @@ impl ImageInfo {
 }
 
 /// 图片查询参数
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ImageQuery {
     /// 分页大小
     pub limit: Option<u64>,
@@ -52,6 +118,9 @@ pub struct ImageQuery {
     pub end_time: Option<DateTime<Utc>>,
     /// 搜索关键词（文件名）
     pub search: Option<String>,
+    /// 所属的 Token 过滤（内部使用）
+    #[serde(skip_serializing, skip_deserializing)]
+    pub owner_token_id: Option<i32>,
 }
 
 /// 图片统计信息

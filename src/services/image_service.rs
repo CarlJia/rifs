@@ -1,24 +1,32 @@
 use chrono::Utc;
+use std::io::ErrorKind;
+
 use sha2::{Digest, Sha256};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tracing::warn;
 
+use crate::config::AppConfig;
 use crate::database::DatabasePool;
-use crate::models::{ImageInfo, ImageQuery, ImageStats};
+use crate::models::{ApiTokenInfo, ImageInfo, ImageQuery, ImageStats, TokenRole};
 use crate::repositories::{ImageRepository, ImageRepositoryTrait};
 use crate::utils::{
     detect_file_type, ensure_image_dir, ensure_upload_dir, get_extension_from_mime, get_file_path,
     get_upload_dir, validate_file_size, AppError,
 };
+use super::{cache_service::CacheService, token_service::TokenService};
 
 /// 图片服务结构体
 pub struct ImageService;
 
 impl ImageService {
     /// 计算文件哈希值
-    fn calculate_file_hash(data: &[u8]) -> String {
+    fn calculate_file_hash(data: &[u8], owner_token_id: Option<i32>) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data);
+        if let Some(owner_id) = owner_token_id {
+            hasher.update(owner_id.to_le_bytes());
+        }
         format!("{:x}", hasher.finalize())
     }
 
@@ -27,6 +35,7 @@ impl ImageService {
         pool: &DatabasePool,
         data: &[u8],
         original_filename: Option<String>,
+        owner: &ApiTokenInfo,
     ) -> Result<ImageInfo, AppError> {
         // 验证文件是否为空
         if data.is_empty() {
@@ -39,8 +48,8 @@ impl ImageService {
         // 基于文件内容检测真实的MIME类型（安全）
         let mime_type = detect_file_type(data)?;
 
-        // 计算文件哈希值用于去重
-        let file_hash = Self::calculate_file_hash(data);
+        let owner_token_id = Some(owner.id);
+        let file_hash = Self::calculate_file_hash(data, owner_token_id);
 
         // 检查是否已存在相同文件
         let connection = pool.get_connection();
@@ -65,27 +74,38 @@ impl ImageService {
             extension,
             access_count: 0,
             original_filename,
+            owner_token_id,
         };
 
-        // 计算文件路径
-        let stored_name = image_info.stored_name();
-        let relative_path = format!("{}/{}/{}", &file_hash[0..2], &file_hash[2..4], stored_name);
+        let relative_path = format!(
+            "{}/{}/{}",
+            &file_hash[0..2],
+            &file_hash[2..4],
+            image_info.stored_name()
+        );
 
-        // 确保存储目录结构存在
-        ensure_image_dir(std::path::Path::new(&relative_path)).await?;
+        let reserve_amount = data.len() as i64;
+        let token_service = TokenService::new(connection.clone());
+        token_service.reserve_storage(owner.id, reserve_amount).await?;
 
-        // 获取文件完整路径
-        let file_path = get_file_path(std::path::Path::new(&relative_path));
+        let result = async {
+            ensure_image_dir(std::path::Path::new(&relative_path)).await?;
+            let file_path = get_file_path(std::path::Path::new(&relative_path));
 
-        // 写入文件
-        let mut file = File::create(&file_path).await?;
-        file.write_all(data).await?;
-        file.sync_all().await?;
+            let mut file = File::create(&file_path).await?;
+            file.write_all(data).await?;
+            file.sync_all().await?;
 
-        // 保存到数据库
-        image_repo.insert(&image_info).await?;
+            image_repo.insert(&image_info).await?;
+            Ok::<_, AppError>(image_info)
+        }
+        .await;
 
-        Ok(image_info)
+        if result.is_err() {
+            let _ = token_service.release_storage(owner.id, reserve_amount).await;
+        }
+
+        result
     }
 
     /// 根据哈希值获取图片信息

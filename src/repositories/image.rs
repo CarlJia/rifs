@@ -31,7 +31,10 @@ pub trait ImageRepositoryTrait: Repository {
     async fn delete_by_hash(&self, hash: &str) -> Result<bool, AppError>;
 
     /// 获取统计信息
-    async fn get_stats(&self) -> Result<ImageStats, AppError>;
+    async fn get_stats(&self, owner_token_id: Option<i32>) -> Result<ImageStats, AppError>;
+
+    /// 根据Token查询所有图片
+    async fn find_by_owner(&self, owner_token_id: i32) -> Result<Vec<ImageInfo>, AppError>;
 }
 
 /// 图片仓储实现
@@ -76,6 +79,10 @@ impl ImageRepository {
                 .add(image::Column::Hash.contains(search))
                 .add(image::Column::OriginalFilename.contains(search));
             condition = condition.add(search_condition);
+        }
+
+        if let Some(owner_id) = query.owner_token_id {
+            condition = condition.add(image::Column::OwnerTokenId.eq(owner_id));
         }
 
         condition
@@ -258,17 +265,26 @@ impl ImageRepositoryTrait for ImageRepository {
         Ok(deleted)
     }
 
-    async fn get_stats(&self) -> Result<ImageStats, AppError> {
+    async fn get_stats(&self, owner_token_id: Option<i32>) -> Result<ImageStats, AppError> {
         debug!("获取图片统计信息");
 
         let connection = self.get_connection();
         let db_backend = connection.get_database_backend();
+        let where_clause = if owner_token_id.is_some() {
+            " WHERE owner_token_id = ?"
+        } else {
+            ""
+        };
+        let params = owner_token_id
+            .map(|id| vec![sea_orm::Value::Int(Some(id))])
+            .unwrap_or_default();
 
         // 获取基本统计信息
         let basic_stats = connection
-            .query_one(Statement::from_string(
+            .query_one(Statement::from_sql_and_values(
                 db_backend,
-                "SELECT COUNT(*) as total_count, COALESCE(SUM(size), 0) as total_size, COALESCE(AVG(size), 0) as average_size FROM images".to_string()
+                format!("SELECT COUNT(*) as total_count, COALESCE(SUM(size), 0) as total_size, COALESCE(AVG(size), 0) as average_size FROM images{}", where_clause),
+                params.clone(),
             ))
             .await
             .map_err(|e| AppError::Internal(format!("查询基本统计失败: {}", e)))?;
@@ -285,9 +301,13 @@ impl ImageRepositoryTrait for ImageRepository {
 
         // 按类型统计
         let type_stats = connection
-            .query_all(Statement::from_string(
+            .query_all(Statement::from_sql_and_values(
                 db_backend,
-                "SELECT mime_type, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images GROUP BY mime_type".to_string()
+                format!(
+                    "SELECT mime_type, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images{} GROUP BY mime_type",
+                    where_clause
+                ),
+                params.clone(),
             ))
             .await
             .map_err(|e| AppError::Internal(format!("查询类型统计失败: {}", e)))?;
@@ -303,9 +323,13 @@ impl ImageRepositoryTrait for ImageRepository {
 
         // 按时间统计（按天）
         let time_stats = connection
-            .query_all(Statement::from_string(
+            .query_all(Statement::from_sql_and_values(
                 db_backend,
-                "SELECT DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30".to_string()
+                format!(
+                    "SELECT DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size FROM images{} GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30",
+                    where_clause
+                ),
+                params,
             ))
             .await
             .map_err(|e| AppError::Internal(format!("查询时间统计失败: {}", e)))?;
@@ -326,5 +350,16 @@ impl ImageRepositoryTrait for ImageRepository {
             by_type,
             by_time,
         })
+    }
+
+    async fn find_by_owner(&self, owner_token_id: i32) -> Result<Vec<ImageInfo>, AppError> {
+        let connection = self.get_connection();
+        let records = Image::find()
+            .filter(image::Column::OwnerTokenId.eq(owner_token_id))
+            .all(&*connection)
+            .await
+            .map_err(|e| AppError::Internal(format!("查询图片失败: {}", e)))?;
+
+        Ok(records.into_iter().map(|model| model.into()).collect())
     }
 }
