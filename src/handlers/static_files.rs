@@ -84,3 +84,9 @@ pub async fn gallery_page() -> impl IntoResponse {
 
 /// 缓存管理页面HTML
 pub const CACHE_MANAGEMENT_HTML: &str = include_str!("../../web/cache_management.html");
+
+/// 用户管理页面
+pub async fn user_management_page() -> impl IntoResponse {
+    let html_content = include_str!("../../web/index.html");
+    Html(html_content)
+}

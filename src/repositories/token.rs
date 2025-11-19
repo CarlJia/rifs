@@ -104,6 +104,11 @@ impl TokenRepository {
     }
 
     pub async fn adjust_usage(&self, token_id: i32, delta: i64) -> Result<(), AppError> {
+        // ID为0的token是临时用户，不需要检查存储配额
+        if token_id == 0 {
+            return Ok(());
+        }
+
         let connection = self.conn();
         let txn = connection
             .begin()

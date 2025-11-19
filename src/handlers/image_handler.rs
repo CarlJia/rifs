@@ -22,12 +22,26 @@ async fn verify_token_from_headers(
     use axum::http::{header, HeaderName};
     use crate::config::AppConfig;
     use crate::services::TokenService;
+    use chrono::Utc;
+    use crate::models::TokenRole;
 
     let config = AppConfig::get();
     let auth_config = &config.auth;
 
+    // 如果认证未启用，返回一个默认的管理员token信息
     if !auth_config.enabled {
-        return Err(AppError::Unauthorized("认证未启用".to_string()));
+        return Ok(crate::models::ApiTokenInfo {
+            id: 0,
+            name: "default".to_string(),
+            role: TokenRole::Admin,
+            max_upload_size: None,
+            used_upload_size: 0,
+            expires_at: None,
+            is_active: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_used_at: None,
+        });
     }
 
     let header_name: HeaderName = auth_config
@@ -64,7 +78,7 @@ async fn verify_token_from_headers(
             
             // 检查token是否过期
             if let Some(expires_at) = token_info.expires_at {
-                if expires_at < chrono::Utc::now() {
+                if expires_at < Utc::now() {
                     return Err(AppError::Unauthorized("Token已过期".to_string()));
                 }
             }
