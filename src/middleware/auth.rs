@@ -4,7 +4,7 @@ use axum::{
 };
 use tracing::warn;
 
-use crate::{app_state::AppState, config::AppConfig, models::ApiTokenInfo, utils::AppError};
+use crate::{app_state::AppState, config::AppConfig, models::{ApiTokenInfo, TokenRole}, utils::AppError};
 use crate::services::TokenService;
 
 /// 从请求头中验证token并返回用户信息（公共方法）
@@ -217,6 +217,90 @@ where
             warn!("认证失败: 缺少或提供了无效的凭证");
             Err(AppError::Unauthorized(
                 "认证失败，缺少有效的凭证".to_string(),
+            ))
+        }
+    }
+}
+
+/// Admin角色守卫 - 确保只有管理员可以访问受保护的端点
+pub struct AdminGuard(pub ApiTokenInfo);
+
+impl<S> FromRequestParts<S> for AdminGuard
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let config = AppConfig::get();
+        let auth_config = &config.auth;
+
+        if !auth_config.enabled {
+            return Ok(Self(ApiTokenInfo {
+                id: 0,
+                name: "default_admin".to_string(),
+                role: TokenRole::Admin,
+                max_upload_size: None,
+                used_upload_size: 0,
+                expires_at: None,
+                is_active: true,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                last_used_at: None,
+            }));
+        }
+
+        let header_name: HeaderName = auth_config
+            .header_name
+            .parse()
+            .unwrap_or_else(|_| header::AUTHORIZATION.clone());
+        let is_authorization_header = header_name == header::AUTHORIZATION;
+
+        let header_value = parts
+            .headers
+            .get(&header_name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim);
+
+        if let Some(value) = header_value {
+            let token = if is_authorization_header {
+                if let Some(token) = value.strip_prefix("Bearer ") {
+                    token.trim()
+                } else {
+                    value.trim()
+                }
+            } else {
+                value.trim()
+            };
+
+            // 首先检查是否是配置文件中的管理员token
+            if let Some(expected_token) = &auth_config.token {
+                if token.trim() == expected_token.trim() {
+                    // 创建一个管理员token信息
+                    let token_info = ApiTokenInfo {
+                        id: 0,
+                        name: "管理员".to_string(),
+                        role: TokenRole::Admin,
+                        max_upload_size: None,
+                        used_upload_size: 0,
+                        expires_at: None,
+                        is_active: true,
+                        created_at: chrono::Utc::now(),
+                        updated_at: chrono::Utc::now(),
+                        last_used_at: Some(chrono::Utc::now()),
+                    };
+                    return Ok(AdminGuard(token_info));
+                }
+            }
+
+            warn!("Admin访问被拒绝: 提供的令牌无效或权限不足");
+            Err(AppError::Unauthorized(
+                "需要管理员权限访问此资源".to_string(),
+            ))
+        } else {
+            warn!("认证失败: 缺少或提供了无效的凭证");
+            Err(AppError::Unauthorized(
+                "缺少有效的认证凭证".to_string(),
             ))
         }
     }

@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::app_state::AppState;
 use crate::handlers::static_files::CACHE_MANAGEMENT_HTML;
-use crate::middleware::verify_token_from_headers;
+use crate::middleware::{verify_token_from_headers, AdminGuard};
 use crate::models::CacheCleanupResult;
 use crate::services::CacheService;
 use crate::utils::AppError;
@@ -40,13 +40,11 @@ pub async fn get_cache_stats(State(state): State<AppState>) -> Result<impl IntoR
     Ok(Json(ApiResponse::success("获取缓存统计成功", Some(stats))))
 }
 
-/// 执行热度衰减
+/// 执行热度衰减 - 仅管理员
 pub async fn decay_heat_scores(
     State(state): State<AppState>,
-    headers: HeaderMap,
+    _admin: AdminGuard,
 ) -> Result<impl IntoResponse, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &state).await?;
     let db_connection = state.db_pool().get_connection();
     let cache_service = CacheService::new(db_connection)?;
 
@@ -58,14 +56,12 @@ pub async fn decay_heat_scores(
     )))
 }
 
-/// 自动清理缓存（主要清理接口）
+/// 自动清理缓存（主要清理接口） - 仅管理员
 /// 只在空间使用率达到阈值时执行清理
 pub async fn auto_cleanup_cache(
     State(app_state): State<AppState>,
-    headers: HeaderMap,
+    _admin: AdminGuard,
 ) -> Result<Json<ApiResponse<CacheCleanupResult>>, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let cache_service = CacheService::new(connection)?;
 
@@ -74,13 +70,11 @@ pub async fn auto_cleanup_cache(
     Ok(Json(ApiResponse::success("自动清理完成", Some(result))))
 }
 
-/// 清空所有缓存
+/// 清空所有缓存 - 仅管理员
 pub async fn clear_all_cache(
     State(app_state): State<AppState>,
-    headers: HeaderMap,
+    _admin: AdminGuard,
 ) -> Result<Json<ApiResponse<CacheCleanupResult>>, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let cache_service = CacheService::new(connection)?;
 

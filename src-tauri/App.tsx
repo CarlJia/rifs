@@ -28,6 +28,24 @@ export default function App() {
     return <Login onLoginSuccess={() => window.location.reload()} />
   }
 
+  // 获取用户角色，默认为普通用户
+  const userRole = localStorage.getItem('user_role') || 'user'
+  const isAdmin = userRole === 'admin'
+
+  // 普通用户只能访问首页和图片库
+  if (!isAdmin && currentPage !== 'home' && currentPage !== 'gallery') {
+    return (
+      <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">访问被拒绝</h2>
+            <p className="text-muted-foreground mb-4">您没有权限访问此页面</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -35,11 +53,11 @@ export default function App() {
       case 'gallery':
         return <Gallery />
       case 'cache':
-        return <CacheManagement />
+        return isAdmin ? <CacheManagement /> : <Home />
       case 'settings':
-        return <Settings />
+        return isAdmin ? <Settings /> : <Home />
       case 'users':
-        return <UserManagement />
+        return isAdmin ? <UserManagement /> : <Home />
       default:
         return <Home />
     }

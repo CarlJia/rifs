@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tracing::info;
 
 use crate::app_state::AppState;
-use crate::middleware::verify_token_from_headers;
+use crate::middleware::{verify_token_from_headers, AdminGuard};
 use crate::models::{CreateTokenPayload, TokenQuery, TokenRole};
 use crate::services::TokenService;
 use crate::utils::AppError;
@@ -22,15 +22,13 @@ pub struct CreateTokenRequest {
     pub expires_at: Option<String>,
 }
 
+/// 列出Token - 仅管理员
 pub async fn list_tokens(
     State(app_state): State<AppState>,
-    headers: axum::http::HeaderMap,
+    _admin: AdminGuard,
     Query(query): Query<TokenQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     info!("收到Token列表请求: {:?}", query);
-
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
 
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
@@ -52,13 +50,12 @@ pub async fn list_tokens(
     })))
 }
 
+/// 创建Token - 仅管理员
 pub async fn create_token(
     State(app_state): State<AppState>,
-    headers: axum::http::HeaderMap,
+    _admin: AdminGuard,
     Json(payload): Json<CreateTokenRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
     
@@ -81,25 +78,23 @@ pub async fn create_token(
     Ok(Json(response))
 }
 
+/// 删除Token - 仅管理员
 pub async fn delete_token(
     State(app_state): State<AppState>,
     Path(token_id): Path<i32>,
-    headers: axum::http::HeaderMap,
+    _admin: AdminGuard,
 ) -> Result<impl IntoResponse, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let token_service = TokenService::new(app_state.db_pool().get_connection());
     token_service.delete_token_with_data(app_state.db_pool(), token_id).await?;
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+/// 获取单个Token - 仅管理员
 pub async fn get_token(
     State(app_state): State<AppState>,
     Path(token_id): Path<i32>,
-    headers: axum::http::HeaderMap,
+    _admin: AdminGuard,
 ) -> Result<impl IntoResponse, AppError> {
-    // 验证token
-    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let token_service = TokenService::new(connection);
     let token = token_service.get_token(token_id).await?;

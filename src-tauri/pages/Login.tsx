@@ -5,9 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
+import api from '@/services/api'
 
 interface LoginProps {
   onLoginSuccess: () => void
+}
+
+interface AuthResponse {
+  success: boolean
+  message: string
+  header_name?: string
+  role?: string
 }
 
 export function Login({ onLoginSuccess }: LoginProps) {
@@ -28,10 +36,25 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
     setLoading(true)
     try {
-      login(token, headerName)
-      onLoginSuccess()
+      // 验证token
+      const response = await api.post('/api/auth/verify', {
+        token: token.trim(),
+      }) as AuthResponse
+
+      if (response.success) {
+        // 保存用户角色
+        if (response.role) {
+          localStorage.setItem('user_role', response.role)
+        } else {
+          localStorage.setItem('user_role', 'user')
+        }
+        login(token, headerName)
+        onLoginSuccess()
+      } else {
+        setError(response.message || '认证失败')
+      }
     } catch (err) {
-      setError('登录失败')
+      setError('登录失败，请检查令牌是否正确')
     } finally {
       setLoading(false)
     }

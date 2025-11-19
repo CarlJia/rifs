@@ -46,13 +46,24 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
     }
   }
 
-  const menuItems = [
-    { id: 'home', label: '首页', icon: Home },
-    { id: 'gallery', label: '图片库', icon: Image },
-    { id: 'cache', label: '缓存管理', icon: Settings },
-    { id: 'users', label: '用户管理', icon: Users },
-    { id: 'settings', label: '系统设置', icon: Sliders },
-  ] as const
+  // 获取用户角色
+  const userRole = localStorage.getItem('user_role') || 'user'
+  const isAdmin = userRole === 'admin'
+
+  // 普通用户只能访问首页和图片库
+  const menuItems = isAdmin
+    ? [
+        { id: 'home', label: '首页', icon: Home },
+        { id: 'gallery', label: '图片库', icon: Image },
+        { id: 'cache', label: '缓存管理', icon: Settings },
+        { id: 'users', label: '用户管理', icon: Users },
+        { id: 'settings', label: '系统设置', icon: Sliders },
+      ]
+    : [
+        { id: 'home', label: '首页', icon: Home },
+        { id: 'gallery', label: '图片库', icon: Image },
+      ]
+
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

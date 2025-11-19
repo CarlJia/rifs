@@ -26,14 +26,17 @@ pub struct AuthResponse {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
 }
 
 impl AuthResponse {
-    pub fn success(message: &str) -> Self {
+    pub fn success(message: &str, role: Option<String>) -> Self {
         Self {
             success: true,
             message: message.to_string(),
             header_name: Some(AppConfig::get().auth.header_name.clone()),
+            role,
         }
     }
 
@@ -42,6 +45,7 @@ impl AuthResponse {
             success: false,
             message: message.to_string(),
             header_name: None,
+            role: None,
         }
     }
 }
@@ -62,15 +66,16 @@ pub async fn verify_token(
     let config = AppConfig::get();
     let auth_config = &config.auth;
 
-    // 如果认证未启用，直接允许访问
+    // 如果认证未启用，直接允许访问（无权限限制）
     if !auth_config.enabled {
-        return Ok(Json(AuthResponse::success("认证已禁用，无需验证")));
+        return Ok(Json(AuthResponse::success("认证已禁用，无需验证", None)));
     }
 
     // 检查 token 是否匹配
     if let Some(expected_token) = &auth_config.token {
         if payload.token.trim() == expected_token.trim() {
-            Ok(Json(AuthResponse::success("认证成功")))
+            // 配置文件中的token被认为是管理员token
+            Ok(Json(AuthResponse::success("认证成功", Some("admin".to_string()))))
         } else {
             Ok(Json(AuthResponse::error("认证令牌无效")))
         }
