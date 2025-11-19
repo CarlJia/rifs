@@ -64,13 +64,13 @@ fn get_content_type(file_path: &str) -> &'static str {
 pub async fn api_docs() -> impl IntoResponse {
     // 无论认证是否启用，都返回 index.html
     // 前端 app.js 会根据 localStorage 中的 auth_token 和认证配置来决定是否重定向到登录页面
-    let html_content = include_str!("../../web/index.html");
+    let html_content = include_str!("../../src-tauri/index.html");
     Html(html_content)
 }
 
 /// 登录页面
 pub async fn login_page() -> impl IntoResponse {
-    let html_content = include_str!("../../web/login.html");
+    let html_content = include_str!("../../src-tauri/index.html");
     Html(html_content)
 }
 
@@ -78,15 +78,15 @@ pub async fn login_page() -> impl IntoResponse {
 pub async fn gallery_page() -> impl IntoResponse {
     // 无论认证是否启用，都返回 gallery.html
     // 前端 gallery.js 会根据 localStorage 中的 auth_token 和认证配置来决定是否重定向到登录页面
-    let html_content = include_str!("../../web/gallery.html");
+    let html_content = include_str!("../../src-tauri/index.html");
     Html(html_content)
 }
 
 /// 缓存管理页面HTML
-pub const CACHE_MANAGEMENT_HTML: &str = include_str!("../../web/cache_management.html");
+pub const CACHE_MANAGEMENT_HTML: &str = include_str!("../../src-tauri/index.html");
 
 /// 用户管理页面
 pub async fn user_management_page() -> impl IntoResponse {
-    let html_content = include_str!("../../web/index.html");
+    let html_content = include_str!("../../src-tauri/index.html");
     Html(html_content)
 }

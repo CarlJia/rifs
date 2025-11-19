@@ -34,6 +34,76 @@ impl TokenRepository {
             .map_err(|e| AppError::Internal(format!("查询Token失败: {}", e)))
     }
 
+    /// 分页查询tokens
+    pub async fn find_by_query(&self, query: &crate::models::TokenQuery) -> Result<crate::repositories::PageResult<api_token::Model>, AppError> {
+        use crate::models::TokenRole;
+        use sea_orm::{Condition, Set};
+
+        let limit = query.limit.unwrap_or(20);
+        let offset = query.offset.unwrap_or(0);
+
+        let mut select = ApiToken::find();
+
+        // 添加过滤条件
+        let mut condition = Condition::all();
+
+        if let Some(ref role) = query.role {
+            condition = condition.add(api_token::Column::Role.eq(role));
+        }
+
+        if let Some(is_active) = query.is_active {
+            condition = condition.add(api_token::Column::IsActive.eq(is_active));
+        }
+
+        if let Some(ref search) = query.search {
+            condition = condition.add(api_token::Column::Name.contains(search));
+        }
+
+        select = select.filter(condition);
+
+        // 添加排序
+        if let Some(ref order_by) = query.order_by {
+            let order_dir = query.order_dir.as_deref().unwrap_or("desc");
+            match order_by.as_str() {
+                "name" => {
+                    if order_dir == "asc" {
+                        select = select.order_by_asc(api_token::Column::Name);
+                    } else {
+                        select = select.order_by_desc(api_token::Column::Name);
+                    }
+                }
+                "created_at" => {
+                    if order_dir == "asc" {
+                        select = select.order_by_asc(api_token::Column::CreatedAt);
+                    } else {
+                        select = select.order_by_desc(api_token::Column::CreatedAt);
+                    }
+                }
+                "updated_at" => {
+                    if order_dir == "asc" {
+                        select = select.order_by_asc(api_token::Column::UpdatedAt);
+                    } else {
+                        select = select.order_by_desc(api_token::Column::UpdatedAt);
+                    }
+                }
+                _ => {
+                    // 默认按创建时间倒序
+                    select = select.order_by_desc(api_token::Column::CreatedAt);
+                }
+            }
+        } else {
+            // 默认按创建时间倒序
+            select = select.order_by_desc(api_token::Column::CreatedAt);
+        }
+
+        let connection = self.conn();
+        let paginator = select.paginate(&*connection, limit);
+        let total = paginator.num_items().await?;
+        let items = paginator.fetch_page(offset).await?;
+
+        Ok(crate::repositories::PageResult { items, total })
+    }
+
     pub async fn find_by_hash(
         &self,
         token_hash: &str,

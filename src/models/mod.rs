@@ -123,6 +123,25 @@ pub struct ImageQuery {
     pub owner_token_id: Option<i32>,
 }
 
+/// Token查询参数
+#[derive(Debug, Deserialize, Clone)]
+pub struct TokenQuery {
+    /// 分页大小
+    pub limit: Option<u64>,
+    /// 偏移量
+    pub offset: Option<u64>,
+    /// 按字段排序
+    pub order_by: Option<String>,
+    /// 排序方向（asc/desc）
+    pub order_dir: Option<String>,
+    /// 角色过滤
+    pub role: Option<String>,
+    /// 是否激活过滤
+    pub is_active: Option<bool>,
+    /// 搜索关键词（名称）
+    pub search: Option<String>,
+}
+
 /// 图片统计信息
 #[derive(Debug, Serialize)]
 pub struct ImageStats {

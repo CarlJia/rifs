@@ -3,6 +3,7 @@ Cargo.lock
 /build
 /data
 /uploads
+/cache
 config.toml
 test_db_*.sqlite
 :memory:

@@ -103,3 +103,9 @@ impl IntoResponse for AppError {
         (status, Json(error_response)).into_response()
     }
 }
+
+impl From<sea_orm::DbErr> for AppError {
+    fn from(err: sea_orm::DbErr) -> Self {
+        AppError::Internal(format!("数据库错误: {}", err))
+    }
+}

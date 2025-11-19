@@ -4,8 +4,84 @@ use axum::{
 };
 use tracing::warn;
 
-use crate::{config::AppConfig, models::ApiTokenInfo, utils::AppError};
+use crate::{app_state::AppState, config::AppConfig, models::ApiTokenInfo, utils::AppError};
 use crate::services::TokenService;
+
+/// 从请求头中验证token并返回用户信息（公共方法）
+pub async fn verify_token_from_headers(
+    headers: &axum::http::HeaderMap,
+    app_state: &AppState,
+) -> Result<ApiTokenInfo, AppError> {
+    use axum::http::{header, HeaderName};
+    use chrono::Utc;
+    use crate::models::TokenRole;
+
+    let config = AppConfig::get();
+    let auth_config = &config.auth;
+
+    // 如果认证未启用，返回一个默认的管理员token信息
+    if !auth_config.enabled {
+        return Ok(ApiTokenInfo {
+            id: 0,
+            name: "default".to_string(),
+            role: TokenRole::Admin,
+            max_upload_size: None,
+            used_upload_size: 0,
+            expires_at: None,
+            is_active: true,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            last_used_at: None,
+        });
+    }
+
+    let header_name: HeaderName = auth_config
+        .header_name
+        .parse()
+        .unwrap_or_else(|_| header::AUTHORIZATION.clone());
+    let is_authorization_header = header_name == header::AUTHORIZATION;
+
+    let header_value = headers
+        .get(&header_name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim);
+
+    if let Some(value) = header_value {
+        let token = if is_authorization_header {
+            if let Some(token) = value.strip_prefix("Bearer ") {
+                token.trim()
+            } else {
+                value.trim()
+            }
+        } else {
+            value.trim()
+        };
+
+        // 从数据库验证token
+        let connection = app_state.db_pool().get_connection();
+        let token_service = TokenService::new(connection);
+        
+        // 通过token hash查找用户信息
+        if let Some(token_info) = token_service.find_by_token_hash(token).await? {
+            if !token_info.is_active {
+                return Err(AppError::Unauthorized("Token已被禁用".to_string()));
+            }
+            
+            // 检查token是否过期
+            if let Some(expires_at) = token_info.expires_at {
+                if expires_at < Utc::now() {
+                    return Err(AppError::Unauthorized("Token已过期".to_string()));
+                }
+            }
+            
+            Ok(token_info)
+        } else {
+            Err(AppError::Unauthorized("Token不存在".to_string()))
+        }
+    } else {
+        Err(AppError::Unauthorized("缺少认证token".to_string()))
+    }
+}
 
 /// 请求认证守卫
 ///

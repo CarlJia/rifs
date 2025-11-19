@@ -99,6 +99,15 @@ impl TokenService {
         Ok(models.into_iter().map(ApiTokenInfo::from).collect())
     }
 
+    /// 分页查询tokens
+    pub async fn query_tokens(&self, query: &crate::models::TokenQuery) -> Result<crate::repositories::PageResult<ApiTokenInfo>, AppError> {
+        let page_result = self.repo.find_by_query(query).await?;
+        Ok(crate::repositories::PageResult {
+            items: page_result.items.into_iter().map(ApiTokenInfo::from).collect(),
+            total: page_result.total,
+        })
+    }
+
     pub async fn create_token(
         &self,
         payload: CreateTokenPayload,

@@ -1,12 +1,13 @@
 use axum::{
     extract::State,
+    http::HeaderMap,
     response::{IntoResponse, Json},
 };
 use serde::Serialize;
 
 use crate::app_state::AppState;
 use crate::handlers::static_files::CACHE_MANAGEMENT_HTML;
-use crate::middleware::AuthGuard;
+use crate::middleware::verify_token_from_headers;
 use crate::models::CacheCleanupResult;
 use crate::services::CacheService;
 use crate::utils::AppError;
@@ -42,7 +43,10 @@ pub async fn get_cache_stats(State(state): State<AppState>) -> Result<impl IntoR
 /// 执行热度衰减
 pub async fn decay_heat_scores(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
+    // 验证token
+    let _auth_user = verify_token_from_headers(&headers, &state).await?;
     let db_connection = state.db_pool().get_connection();
     let cache_service = CacheService::new(db_connection)?;
 
@@ -58,7 +62,10 @@ pub async fn decay_heat_scores(
 /// 只在空间使用率达到阈值时执行清理
 pub async fn auto_cleanup_cache(
     State(app_state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<ApiResponse<CacheCleanupResult>>, AppError> {
+    // 验证token
+    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let cache_service = CacheService::new(connection)?;
 
@@ -69,9 +76,11 @@ pub async fn auto_cleanup_cache(
 
 /// 清空所有缓存
 pub async fn clear_all_cache(
-    _: AuthGuard,
     State(app_state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<ApiResponse<CacheCleanupResult>>, AppError> {
+    // 验证token
+    let _auth_user = verify_token_from_headers(&headers, &app_state).await?;
     let connection = app_state.db_pool().get_connection();
     let cache_service = CacheService::new(connection)?;
 

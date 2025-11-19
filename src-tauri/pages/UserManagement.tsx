@@ -55,7 +55,7 @@ export function UserManagement() {
     try {
       setLoading(true)
       const response = await api.get('/api/tokens/list')
-      setTokens(response.data)
+      setTokens(response.data.items)
     } catch (err) {
       setError('加载Token列表失败')
       console.error(err)
@@ -76,8 +76,8 @@ export function UserManagement() {
     try {
       setCreating(true)
       const response = await api.post('/api/tokens/create', form)
-      setNewTokenValue(response.data.plaintext)
-      setShowNewToken(true)
+      setNewTokenValue(response.plaintext)
+      setShowNewToken(false) // 关闭弹框
       setForm({ name: '', role: 'user' })
       await loadTokens()
       setSuccess('Token创建成功')

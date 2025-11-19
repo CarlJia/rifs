@@ -20,7 +20,7 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./*"]
     },
 
     /* Linting */
