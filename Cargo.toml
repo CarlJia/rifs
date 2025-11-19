@@ -73,6 +73,9 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "sqlite", "postg
 # 加密哈希
 sha2 = { version = "0.10", default-features = false }
 
+# 随机数生成
+rand = { version = "0.8", default-features = false }
+
 # 文件类型检测
 infer = { version = "0.19", default-features = false }
 

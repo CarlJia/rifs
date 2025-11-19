@@ -31,6 +31,9 @@ pub struct Model {
 
     /// 原始文件名
     pub original_filename: Option<String>,
+
+    /// 所属的 API Token ID
+    pub owner_token_id: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -49,6 +52,7 @@ impl From<Model> for crate::models::ImageInfo {
             extension: model.extension,
             access_count: model.access_count,
             original_filename: model.original_filename,
+            owner_token_id: model.owner_token_id,
         }
     }
 }
@@ -64,6 +68,7 @@ impl From<&crate::models::ImageInfo> for ActiveModel {
             extension: Set(info.extension.clone()),
             access_count: Set(info.access_count),
             original_filename: Set(info.original_filename.clone()),
+            owner_token_id: Set(info.owner_token_id),
         }
     }
 }
