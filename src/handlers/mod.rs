@@ -5,7 +5,7 @@ pub mod image_handler;
 pub mod static_files;
 pub mod token_handler;
 
-pub use auth_handler::{get_auth_config, verify_token};
+pub use auth_handler::{get_auth_config, verify_token, get_user_info};
 pub use cache_handler::{
     auto_cleanup_cache, cache_management_dashboard, clear_all_cache, decay_heat_scores,
     get_cache_stats,

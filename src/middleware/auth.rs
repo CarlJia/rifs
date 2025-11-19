@@ -4,7 +4,7 @@ use axum::{
 };
 use tracing::warn;
 
-use crate::{app_state::AppState, config::AppConfig, models::ApiTokenInfo, utils::AppError};
+use crate::{app_state::AppState, config::AppConfig, models::{ApiTokenInfo, TokenRole}, utils::AppError};
 use crate::services::TokenService;
 
 /// 从请求头中验证token并返回用户信息（公共方法）
@@ -192,7 +192,6 @@ where
             if let Some(expected_token) = &auth_config.token {
                 if token.trim() == expected_token.trim() {
                     // 创建一个管理员token信息
-                    use crate::models::TokenRole;
                     use chrono::Utc;
                     let token_info = ApiTokenInfo {
                         id: 0, // 使用0表示管理员token
@@ -213,6 +212,66 @@ where
             // 如果不是配置文件中的token，则返回错误（暂时不支持数据库token查询）
             // TODO: 实现从数据库查询token的逻辑
             Err(AppError::Unauthorized("Token不存在".to_string()))
+        } else {
+            warn!("认证失败: 缺少或提供了无效的凭证");
+            Err(AppError::Unauthorized(
+                "认证失败，缺少有效的凭证".to_string(),
+            ))
+        }
+    }
+}
+
+/// Admin 守卫 - 仅允许 Admin 角色的用户访问
+pub struct AdminGuard;
+
+impl<S> FromRequestParts<S> for AdminGuard
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let config = AppConfig::get();
+        let auth_config = &config.auth;
+
+        if !auth_config.enabled {
+            return Ok(Self);
+        }
+
+        let header_name: HeaderName = auth_config
+            .header_name
+            .parse()
+            .unwrap_or_else(|_| header::AUTHORIZATION.clone());
+        let is_authorization_header = header_name == header::AUTHORIZATION;
+
+        let header_value = parts
+            .headers
+            .get(&header_name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim);
+
+        if let Some(value) = header_value {
+            let token = if is_authorization_header {
+                if let Some(token) = value.strip_prefix("Bearer ") {
+                    token.trim()
+                } else {
+                    value.trim()
+                }
+            } else {
+                value.trim()
+            };
+
+            // 检查是否是配置文件中的管理员token
+            if let Some(expected_token) = &auth_config.token {
+                if token.trim() == expected_token.trim() {
+                    return Ok(Self);
+                }
+            }
+
+            warn!("非管理员访问受限资源");
+            Err(AppError::Forbidden(
+                "只有管理员才能访问此资源".to_string(),
+            ))
         } else {
             warn!("认证失败: 缺少或提供了无效的凭证");
             Err(AppError::Unauthorized(

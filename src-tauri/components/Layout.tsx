@@ -46,13 +46,22 @@ export function Layout({ children, currentPage, onPageChange }: LayoutProps) {
     }
   }
 
-  const menuItems = [
-    { id: 'home', label: '首页', icon: Home },
-    { id: 'gallery', label: '图片库', icon: Image },
-    { id: 'cache', label: '缓存管理', icon: Settings },
-    { id: 'users', label: '用户管理', icon: Users },
-    { id: 'settings', label: '系统设置', icon: Sliders },
+  const { userRole } = useAuth()
+
+  const baseMenuItems = [
+    { id: 'home', label: '首页', icon: Home, requiredRole: 'user' as const },
+    { id: 'gallery', label: '图片库', icon: Image, requiredRole: 'user' as const },
+    { id: 'cache', label: '缓存管理', icon: Settings, requiredRole: 'admin' as const },
+    { id: 'users', label: '用户管理', icon: Users, requiredRole: 'admin' as const },
+    { id: 'settings', label: '系统设置', icon: Sliders, requiredRole: 'admin' as const },
   ] as const
+
+  const menuItems = baseMenuItems.filter(item => {
+    if (item.requiredRole === 'admin') {
+      return userRole === 'admin'
+    }
+    return true
+  })
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

@@ -51,6 +51,18 @@ export async function checkAuthRequired(): Promise<boolean> {
   }
 }
 
+export async function getUserInfo(): Promise<any> {
+  const response = await fetch(`${getApiBaseUrl()}/api/auth/user-info`, {
+    headers: getHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch user info: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
 export async function uploadImage(file: File): Promise<any> {
   const formData = new FormData()
   formData.append('file', file)

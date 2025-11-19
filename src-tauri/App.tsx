@@ -13,8 +13,15 @@ import '@/styles/globals.css'
 type Page = 'home' | 'gallery' | 'cache' | 'settings' | 'users'
 
 export default function App() {
-  const { isAuthenticated, authRequired, loading } = useAuth()
+  const { isAuthenticated, authRequired, loading, userRole } = useAuth()
   const [currentPage, setCurrentPage] = useState<Page>('home')
+
+  // 如果用户是普通用户且尝试访问受限页面，重定向到首页
+  useEffect(() => {
+    if (userRole === 'user' && ['cache', 'settings', 'users'].includes(currentPage)) {
+      setCurrentPage('home')
+    }
+  }, [userRole, currentPage])
 
   if (loading) {
     return (

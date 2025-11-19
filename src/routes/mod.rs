@@ -14,7 +14,7 @@ use crate::handlers::{
     decay_heat_scores, delete_image, delete_token, gallery_page, get_auth_config,
     get_cache_stats, get_image, get_image_info, get_stats, get_system_stats,
     get_token, health_check_detailed, list_tokens, login_page, query_images_get,
-    query_images_post, serve_static, upload_image, user_management_page, verify_token,
+    query_images_post, serve_static, upload_image, user_management_page, verify_token, get_user_info,
 };
 use crate::middleware::{log_requests, request_timeout};
 
@@ -34,6 +34,7 @@ pub fn create_routes(app_state: AppState, config: &AppConfig) -> Router {
         // 认证相关路由
         .route("/api/auth/verify", post(verify_token))
         .route("/api/auth/config", get(get_auth_config))
+        .route("/api/auth/user-info", get(get_user_info))
         // Token管理接口
         .route("/api/tokens/list", get(list_tokens))
         .route("/api/tokens/create", post(create_token))

@@ -24,6 +24,9 @@ pub enum AppError {
     #[error("未经授权: {0}")]
     Unauthorized(String),
 
+    #[error("禁止访问: {0}")]
+    Forbidden(String),
+
     #[error("服务器内部错误: {0}")]
     Internal(String),
 
@@ -80,6 +83,14 @@ impl IntoResponse for AppError {
                     success: false,
                     message: msg,
                     code: Some(401),
+                },
+            ),
+            AppError::Forbidden(msg) => (
+                StatusCode::FORBIDDEN,
+                ErrorResponse {
+                    success: false,
+                    message: msg,
+                    code: Some(403),
                 },
             ),
             AppError::Internal(msg) => (

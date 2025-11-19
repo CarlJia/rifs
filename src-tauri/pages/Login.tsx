@@ -28,7 +28,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
     setLoading(true)
     try {
-      login(token, headerName)
+      await login(token, headerName)
       onLoginSuccess()
     } catch (err) {
       setError('登录失败')
